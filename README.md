@@ -84,4 +84,26 @@ We are committed to delivering a platform that is not just a marketplace for ide
 - Regular feedback from both user groups (startups and investors) should be incorporated.
 
 
+### Virtual Environment Setup
+```shell
+python3 -m venv .venv
+```
+
+```shell
+source .venv/bin/activate
+```
+
+```
+pip3 install -r requirements.txt
+```
+
+### Create New Project
+```shell
+django-admin startproject forum
+```
+
+### Run Server
+```shell
+python3 manage.py runserver
+```
 
