@@ -84,4 +84,38 @@ We are committed to delivering a platform that is not just a marketplace for ide
 - Regular feedback from both user groups (startups and investors) should be incorporated.
 
 
+### Virtual Environment Setup
+```shell
+python3 -m venv .venv
+```
+
+```shell
+source .venv/bin/activate
+```
+
+```
+pip3 install -r requirements.txt
+```
+
+### Create New Project
+```shell
+django-admin startproject forum
+```
+
+### Run Server
+```shell
+python3 manage.py runserver
+```
+
+### Environment
+Prepare *.env* file containing sensitive info
+```text
+SECRET_KEY=your_secret_key
+DEBUG=(boolean value)
+DATABASE_NAME=your_database_name
+DATABASE_USER=your_database_user
+DATABASE_PASSWORD=your_database_password
+DATABASE_HOST=your_database_host
+DATABASE_PORT=your_database_port 
+```
 
