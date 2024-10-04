@@ -107,3 +107,15 @@ django-admin startproject forum
 python3 manage.py runserver
 ```
 
+### Environment
+Prepare *.env* file containing sensitive info
+```text
+SECRET_KEY=your_secret_key
+DEBUG=(boolean value)
+DATABASE_NAME=your_database_name
+DATABASE_USER=your_database_user
+DATABASE_PASSWORD=your_database_password
+DATABASE_HOST=your_database_host
+DATABASE_PORT=your_database_port 
+```
+
