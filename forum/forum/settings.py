@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'projects',
     'communications',
     'dashboard',
+    'investors',
 
 ]
 
