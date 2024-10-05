@@ -74,10 +74,7 @@ class Startup(models.Model):
     class Meta:
         verbose_name = 'Startup'
         verbose_name_plural = 'Startups'
-        ordering = ['company_name']
-        constraints = [
-            models.UniqueConstraint(fields=['company_name'], name='unique_startup_company_name')
-        ]
+        
 
     def __str__(self):
         return self.company_name

@@ -45,5 +45,9 @@ class Investor(models.Model):
     website = models.URLField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = 'Investor'
+        verbose_name_plural = 'Investors'
+
     def __str__(self):
         return self.company_name

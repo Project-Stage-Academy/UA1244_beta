@@ -28,7 +28,7 @@ class Media(models.Model):
         verbose_name_plural = 'Media'
 
     def __str__(self):
-        return f"Media {self.id}"
+        return f"Media {self.media_id}"
 
 
 
@@ -66,9 +66,13 @@ class Project(models.Model):
     actual_start_date = models.DateField(blank=True, null=True)
     planned_finish_date = models.DateField(blank=True, null=True)
     actual_finish_date = models.DateField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_update = models.DateTimeField(auto_now=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
+
+    class Meta:
+        verbose_name = 'Project'
+        verbose_name_plural = 'Projects'
 
     def clean(self):
         if self.actual_finish_date and self.planned_start_date:
