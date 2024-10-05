@@ -1,5 +1,6 @@
 from django.db import models
 from startups.models import Location
+import uuid
 
 
 
@@ -18,6 +19,7 @@ class Investor(models.Model):
         website (str): The website of the company.
         created_at (datetime): Date when the investor was created.
     """
+    investor_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='investors', db_index=True)
     company_name = models.CharField(max_length=150, unique=True, db_index=True)
     available_funds = models.DecimalField(max_digits=15, decimal_places=2)

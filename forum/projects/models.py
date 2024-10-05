@@ -1,5 +1,6 @@
 from django.db import models
 from startups.models import Startup
+import uuid
 
 class Media(models.Model):
     """
@@ -11,6 +12,7 @@ class Media(models.Model):
         business_plan (str): URL to the business plan document.
         project_logo (str): URL to the project logo.
     """
+    media_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image_url = models.URLField(max_length=150, blank=True, null=True)
     video_url = models.URLField(max_length=150, blank=True, null=True)
     business_plan = models.URLField(max_length=150, blank=True, null=True)
@@ -41,6 +43,7 @@ class Project(models.Model):
         last_update (datetime): Last update date of the project.
         media (ForeignKey): Associated media information for the project.
     """
+    project_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     startup = models.ForeignKey('Startup', on_delete=models.CASCADE, related_name='projects', db_index=True)
     title = models.CharField(max_length=100, db_index=True)
     description = models.CharField(max_length=2000)

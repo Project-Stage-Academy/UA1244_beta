@@ -1,5 +1,5 @@
 from django.db import models
-
+import uuid
 
 
 class Location(models.Model):
@@ -11,6 +11,7 @@ class Location(models.Model):
         country (str): The country name.
         city_code (str): An optional code representing the city.
     """
+    location_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     city = models.CharField(max_length=50, db_index=True)
     country = models.CharField(max_length=50, db_index=True)
     city_code = models.CharField(max_length=10, blank=True, null=True)
@@ -41,6 +42,7 @@ class Startup(models.Model):
         website (str): The website of the startup.
         created_at (datetime): Date when the startup was created.
     """
+    startup_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='startups', db_index=True)
     company_name = models.CharField(max_length=150, unique=True, db_index=True)
     required_funding = models.DecimalField(max_digits=15, decimal_places=2)
