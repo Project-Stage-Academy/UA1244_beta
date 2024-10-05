@@ -1,20 +1,28 @@
 from django.db import models
 import uuid
 
+class FundingStage(models.TextChoices):
+    SEED = 'Seed', 'Seed'
+    SERIES_A = 'Series A', 'Series A'
+    SERIES_B = 'Series B', 'Series B'
+    SERIES_C = 'Series C', 'Series C'
+    IPO = 'IPO', 'Initial Public Offering'
 
 class Location(models.Model):
     """
     Model representing a location.
 
     Attributes:
-        city (str): The name of the city.
-        country (str): The country name.
-        city_code (str): An optional code representing the city.
+        location_id (UUID): Unique identifier for the location.
+        city (str): City name of the location.
+        country (str): Country name of the location.
+        city_code (str): Code representing the city.
     """
     location_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    city = models.CharField(max_length=50, db_index=True)
-    country = models.CharField(max_length=50, db_index=True)
-    city_code = models.CharField(max_length=10, blank=True, null=True)
+    city = models.CharField(max_length=50, null=True)
+    country = models.CharField(max_length=50, null=True)
+    city_code = models.CharField(max_length=10, null=True)
+
 
     class Meta:
         verbose_name = 'Location'
@@ -30,29 +38,37 @@ class Startup(models.Model):
     Model representing a startup.
 
     Attributes:
-        user (ForeignKey): The user associated with the startup.
-        company_name (str): The name of the startup company.
-        required_funding (decimal): Required funding amount.
-        funding_stage (str): The current funding stage.
+        user (ForeignKey): A ForeignKey pointing to the User model.
+            If the user is deleted, this field will be set to null (SET_NULL).
+            This ensures that the startup record can still exist even if the related user is deleted,
+            but it will no longer have an active link to a specific user.
+        company_name (str): The name of the startup.
+        required_funding (decimal): The amount of funding required by the startup.
+            The value must be non-negative.
+        funding_stage (str): The stage of funding for the startup.
+            Examples include "Seed", "Series A", etc.
         number_of_employees (int): The number of employees in the startup.
-        location (ForeignKey): The location associated with the startup.
-        company_logo (file): Optional company logo.
-        description (str): Description of the startup.
-        total_funding (decimal): Total amount of funding received.
-        website (str): The website of the startup.
-        created_at (datetime): Date when the startup was created.
+        location (ForeignKey): A ForeignKey pointing to the Location model.
+            If the location is deleted, this field will be set to null (SET_NULL).
+            This ensures that the startup record can still exist even if the related location is deleted,
+            but it will no longer have an active link to a specific location.
+        company_logo (ImageField): The logo of the startup, with a maximum file size of 5 MB.
+        description (str): A description of the startup.
+        total_funding (decimal): The total amount of funding received by the startup.
+        website (str): The URL to the startup's website.
+        created_at (datetime): The date and time when the startup entry was created.
     """
     startup_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='startups', db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='startups')
     company_name = models.CharField(max_length=150, unique=True, db_index=True)
-    required_funding = models.DecimalField(max_digits=15, decimal_places=2)
-    funding_stage = models.CharField(max_length=50, blank=True, null=True)
-    number_of_employees = models.IntegerField(blank=True, null=True)
-    location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True, related_name='startups', db_index=True)
+    required_funding = models.DecimalField(max_digits=15, decimal_places=2, null=True)
+    funding_stage = models.CharField(max_length=20, choices=FundingStage.choices, default=FundingStage.SEED)
+    number_of_employees = models.PositiveIntegerField(null=True)
+    location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, related_name='startups')
     company_logo = models.ImageField(upload_to='logos/', blank=True, null=True)
-    description = models.CharField(max_length=1000, blank=True, null=True)
-    total_funding = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
-    website = models.URLField(max_length=150, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    total_funding = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, default=0)
+    website = models.URLField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -60,7 +76,7 @@ class Startup(models.Model):
         verbose_name_plural = 'Startups'
         ordering = ['company_name']
         constraints = [
-            models.UniqueConstraint(fields=['company_name'], name='unique_company_name')
+            models.UniqueConstraint(fields=['company_name'], name='unique_startup_company_name')
         ]
 
     def __str__(self):
