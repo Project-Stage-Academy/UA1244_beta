@@ -5,6 +5,14 @@ from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 
 
+INVESTOR = 'investor'
+STARTUP = 'startup'
+    
+ROLE_CHOICES = [
+        (INVESTOR, 'Investor'),
+        (STARTUP, 'Startup'),
+    ]
+
 class CustomUserManager(BaseUserManager):
     """
     Custom manager for User model that provides methods for creating users and superusers.
@@ -59,16 +67,9 @@ class Role(models.Model):
         role_name (CharField): The name of the role, either 'investor' or 'startup'.
     """
 
-    INVESTOR = 'investor'
-    STARTUP = 'startup'
-    
-    ROLE_CHOICES = [
-        (INVESTOR, 'Investor'),
-        (STARTUP, 'Startup'),
-    ]
 
     role_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    role_name = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES)
 
     class Meta:
         verbose_name = "Role"
@@ -98,12 +99,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
 
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_name = models.CharField(max_length=100, null=False, unique=True)
+    username = models.CharField(max_length=100, null=False, unique=True)
     first_name = models.CharField(max_length=100, null=False)
     last_name = models.CharField(max_length=100, null=False)
     email = models.EmailField(unique=True, null=False, max_length=255)
     password = models.CharField(max_length=255)
-    user_phone = PhoneNumberField(max_length=128)
+    phone = PhoneNumberField()
     roles = models.ManyToManyField(Role, related_name="users")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -118,6 +119,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = "User"
         verbose_name_plural = "Users"
+
+    
+    def __str__(self):
+        return self.email
 
 
 
