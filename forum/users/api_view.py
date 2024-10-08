@@ -9,6 +9,7 @@ from .permissions import IsAdmin, IsOwner
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
+from datetime import timedelta
 
 
 
@@ -142,3 +143,59 @@ class ActivateAccountView(APIView):
 
         except Exception as e:
             return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+
+class SignOutView(APIView):
+    """
+    API View for logging out users by invalidating their access and refresh tokens.
+
+    This view handles the logout process by setting the access and refresh tokens' expiration to zero 
+    and deleting the access and refresh tokens from the client's cookies.
+
+    Permission Classes:
+        - Only authenticated users can log out (IsAuthenticated).
+
+    Methods:
+        post(request):
+            Invalidates the provided refresh token and the current access token.
+            Deletes the access and refresh tokens from cookies.
+            Returns a response indicating success or failure.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Handle POST requests to log out a user.
+
+        Args:
+            request (Request): The HTTP request object containing the refresh token.
+
+        Returns:
+            Response: A Response object indicating the result of the logout operation.
+
+        Raises:
+            TokenError: If the provided refresh token is invalid.
+            Exception: For any unexpected errors during the logout process.
+        """
+        try:
+            access_token = AccessToken(request.auth.token)
+            access_token.set_exp(lifetime=timedelta(seconds=0)) 
+
+            refresh_token = request.data.get('refresh')
+            if refresh_token:
+                refresh_token_instance = RefreshToken(refresh_token)
+                refresh_token_instance.set_exp(lifetime=timedelta(seconds=0))  
+
+            response = Response({"message": "User successfully logged out."}, status=status.HTTP_200_OK)
+            response.delete_cookie('access_token')
+            response.delete_cookie('refresh_token')
+
+            return response
+
+        except TokenError:
+            return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
