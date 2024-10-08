@@ -93,7 +93,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-```
+```shell
 pip3 install -r requirements.txt
 ```
 
@@ -104,7 +104,7 @@ django-admin startproject forum
 
 ### Run Server
 ```shell
-python3 manage.py runserver
+cd forum && python3 manage.py runserver
 ```
 
 ### Environment
@@ -119,3 +119,11 @@ DATABASE_HOST=your_database_host
 DATABASE_PORT=your_database_port 
 ```
 
+### Migrations
+```shell
+cd forum && python manage.py makemigrations
+```
+
+```shell
+cd forum && python manage.py migrate
+```

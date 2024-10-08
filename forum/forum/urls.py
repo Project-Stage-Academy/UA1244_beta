@@ -16,10 +16,20 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
+
+
 
 urlpatterns = [
+    # Admin URL
     path('admin/', admin.site.urls),
-    path("users/", include("users.urls")),
+
+    # Application URLs
+    path("api/v1/", include("users.urls")),
     path("projects/", include("projects.urls")),
     path("profiles/", include("profiles.urls")),
     path("communications/", include("communications.urls")),
@@ -27,4 +37,12 @@ urlpatterns = [
     path("investors/", include("investors.urls")),
     path("startups/", include("startups.urls")),
 
+    # JWT Token URLs
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
+
+    # Authentication URLs (using Djoser)
+    path('api/v1/auth/', include('djoser.urls')),       
+    path('api/v1/auth/', include('djoser.urls.jwt')),     
 ]
