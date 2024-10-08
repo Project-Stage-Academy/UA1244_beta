@@ -48,8 +48,10 @@ INSTALLED_APPS = [
     'projects',
     'communications',
     'dashboard',
+    'investors',
     'rest_framework',
     'djoser'
+
 
 ]
 

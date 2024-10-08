@@ -35,6 +35,8 @@ urlpatterns = [
     path("profiles/", include("profiles.urls")),
     path("communications/", include("communications.urls")),
     path("dashboard/", include("dashboard.urls")),
+    path("investors/", include("investors.urls")),
+    path("startups/", include("startups.urls")),
 
     # JWT Token URLs
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
