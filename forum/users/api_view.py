@@ -2,11 +2,14 @@ from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from .models import User
 from .serializers import UserSerializer
 from .permissions import IsAdmin, IsOwner
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework.views import APIView
+from django.contrib.auth import get_user_model
+
 
 
 class UserViewSet(mixins.RetrieveModelMixin,
@@ -84,7 +87,6 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Generate JWT tokens for the newly registered user
         refresh = RefreshToken.for_user(user)
         response_data = {
             "user": serializer.data,
@@ -93,3 +95,50 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         }
 
         return Response(response_data, status=status.HTTP_201_CREATED)
+    
+
+User = get_user_model()
+
+
+class ActivateAccountView(APIView):
+    """
+    API View for activating a user's account via a token.
+
+    This view takes a token from the URL, verifies it, and activates the user's account by setting is_active to True.
+
+    Methods:
+        get: Activates the user's account if the token is valid and the account is not already active.
+    """
+
+    def get(self, request, token, *args, **kwargs):
+        """
+        Handle GET requests to activate a user's account.
+
+        Args:
+            request (Request): The HTTP request object.
+            token (str): The activation token passed in the URL.
+
+        Returns:
+            Response: A Response object indicating success or failure of activation.
+        """
+        try:
+           
+            access_token = AccessToken(token)
+            user_id = access_token.get('user_id')
+            user = User.objects.get(user_id=user_id)
+
+            if user.is_active:
+                return Response({'message': 'Account is already activated'}, status=status.HTTP_400_BAD_REQUEST)
+            user.is_active = True
+            user.save()
+
+            return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        except TokenError:
+            return Response({'error': 'Invalid or expired token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)

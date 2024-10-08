@@ -1,5 +1,10 @@
 from rest_framework import serializers
 from .models import User, Role
+from django.contrib.auth.password_validation import validate_password
+from django.conf import settings
+from django.core.mail import send_mail
+from django.urls import reverse
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -19,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
         many=True,
         required=False
     )
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, validators=[validate_password])
 
     class Meta:
         """
@@ -56,5 +61,19 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         if roles_data:
             user.roles.set(roles_data)
+            
+        token = RefreshToken.for_user(user).access_token
+        
+        
+        activation_url = f"http://localhost:8000{reverse('activate', kwargs={'token': str(token)})}"
+        
+        
+        send_mail(
+            subject='Activate Your Account',
+            message=f'Hi {user.first_name},\n\nPlease click the link below to activate your account:\n{activation_url}',
+            from_email=settings.EMAIL_HOST_USER,  
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
 
         return user
