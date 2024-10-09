@@ -9,8 +9,14 @@ from .permissions import IsAdmin, IsOwner
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.throttling import AnonRateThrottle
+from users.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
+User = get_user_model()
 
 class UserViewSet(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
@@ -97,8 +103,6 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return Response(response_data, status=status.HTTP_201_CREATED)
     
 
-User = get_user_model()
-
 
 class ActivateAccountView(APIView):
     """
@@ -106,9 +110,16 @@ class ActivateAccountView(APIView):
 
     This view takes a token from the URL, verifies it, and activates the user's account by setting is_active to True.
 
+    Permission Classes:
+        - Allows any user to access this view (AllowAny).
+
     Methods:
-        get: Activates the user's account if the token is valid and the account is not already active.
+        get(request, token):
+            Activates the user's account if the token is valid and the account is not already active.
     """
+    
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]  
 
     def get(self, request, token, *args, **kwargs):
         """
@@ -122,23 +133,27 @@ class ActivateAccountView(APIView):
             Response: A Response object indicating success or failure of activation.
         """
         try:
-           
             access_token = AccessToken(token)
             user_id = access_token.get('user_id')
+
             user = User.objects.get(user_id=user_id)
 
             if user.is_active:
                 return Response({'message': 'Account is already activated'}, status=status.HTTP_400_BAD_REQUEST)
+
             user.is_active = True
             user.save()
 
             return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
 
-        except User.DoesNotExist:
+        except ObjectDoesNotExist:
             return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-        except TokenError:
-            return Response({'error': 'Invalid or expired token'}, status=status.HTTP_400_BAD_REQUEST)
+        except AuthenticationFailed:
+            return Response({'error': 'Invalid or expired token. Please request a new activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        except TokenError as e:
+            return Response({'error': f'Token error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
