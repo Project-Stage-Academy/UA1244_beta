@@ -11,9 +11,8 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.throttling import AnonRateThrottle
-from users.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import CustomToken
 
 
 User = get_user_model()
@@ -104,6 +103,20 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     
 
 
+def create_error_response(message, status_code):
+    """
+    Helper function to centralize error responses.
+
+    Args:
+        message (str): Error message to be included in the response.
+        status_code (int): HTTP status code for the error.
+
+    Returns:
+        Response: A Response object with the error message and status code.
+    """
+    return Response({'error': message}, status=status_code)
+
+
 class ActivateAccountView(APIView):
     """
     API View for activating a user's account via a token.
@@ -133,13 +146,13 @@ class ActivateAccountView(APIView):
             Response: A Response object indicating success or failure of activation.
         """
         try:
-            access_token = AccessToken(token)
-            user_id = access_token.get('user_id')
+            activation_token = CustomToken(token)
+            user_id = activation_token.get('user_id')
 
             user = User.objects.get(user_id=user_id)
 
             if user.is_active:
-                return Response({'message': 'Account is already activated'}, status=status.HTTP_400_BAD_REQUEST)
+                return create_error_response('Account is already activated', status.HTTP_400_BAD_REQUEST)
 
             user.is_active = True
             user.save()
@@ -147,13 +160,13 @@ class ActivateAccountView(APIView):
             return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
 
         except ObjectDoesNotExist:
-            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+            return create_error_response('User does not exist', status.HTTP_404_NOT_FOUND)
 
         except AuthenticationFailed:
-            return Response({'error': 'Invalid or expired token. Please request a new activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+            return create_error_response('Invalid or expired token. Please request a new activation link.', status.HTTP_400_BAD_REQUEST)
 
         except TokenError as e:
-            return Response({'error': f'Token error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            return create_error_response(f'Token error: {str(e)}', status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return Response({'error': f'Something went wrong: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return create_error_response(f'Something went wrong: {str(e)}', status.HTTP_500_INTERNAL_SERVER_ERROR)

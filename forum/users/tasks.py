@@ -12,7 +12,8 @@ def send_activation_email(user_id, activation_url):
             message=f'Hi {user.first_name},\n\nPlease click the link below to activate your account:\n{activation_url}',
             from_email=settings.EMAIL_HOST_USER,
             recipient_list=[user.email],
-            fail_silently=True,  
+            fail_silently=False,  
         )
+        print(f"Activation email sent to {user.email}")
     except User.DoesNotExist:
-        pass
+        print(f"User with ID {user_id} does not exist")

@@ -53,15 +53,6 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
 
     class Meta:
-        """
-        Meta options for UserSerializer.
-
-        Attributes:
-            model (User): The User model being serialized.
-            fields (list): List of fields to include in the serialized output.
-            read_only_fields (tuple): Fields that should be read-only.
-            extra_kwargs (dict): Additional settings for specific fields.
-        """
         model = User
         fields = ['user_id', 'username', 'first_name', 'last_name', 'email', 'phone', 'roles', 'password', 'created_at', 'updated_at']
         read_only_fields = ('created_at', 'updated_at')
@@ -69,27 +60,31 @@ class UserSerializer(serializers.ModelSerializer):
             'password': {'write_only': True}
         }
 
-def create(self, validated_data):
-    """
-    Create a new user instance with the given validated data.
+    def create(self, validated_data):
+        """
+        Create a new user instance with the given validated data.
 
-    This method extracts roles from the validated data, creates a user,
-    hashes the password, and assigns roles to the user if provided.
+        This method extracts roles from the validated data, creates a user,
+        hashes the password, assigns roles to the user if provided.
 
-    Args:
-        validated_data (dict): The validated data for creating a new user.
+        Args:
+            validated_data (dict): The validated data for creating a new user.
 
-    Returns:
-        User: The created user instance.
-    """
-    print("Creating user with data:", validated_data)  
-    roles_data = validated_data.pop('roles', [])
-    user = User.objects.create_user(**validated_data)
-    if roles_data:
-        user.roles.set(roles_data)
+        Returns:
+            User: The created user instance.
+        """ 
+        roles_data = validated_data.pop('roles', [])
+        password = validated_data.pop('password')  
+        
+       
+        user = User.objects.create_user(password=password, **validated_data)  
+        
+        if roles_data:
+            user.roles.set(roles_data)
 
-    token = CustomToken.for_user(user)
-    activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
-    send_activation_email.delay(user.user_id, activation_url)
+        
+        token = CustomToken.for_user(user)
+        activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
+        send_activation_email.delay(user.user_id, activation_url)
 
-    return user
+        return user
