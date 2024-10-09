@@ -1,5 +1,6 @@
 from django.db import models
 from startups.models import Location
+from users.models import User
 import uuid
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError

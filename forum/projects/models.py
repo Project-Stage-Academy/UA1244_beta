@@ -3,7 +3,7 @@ from startups.models import Startup
 import uuid
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-
+from simple_history.models import HistoricalRecords
 
 
 class Media(models.Model):
@@ -37,6 +37,7 @@ class ProjectStatus(models.TextChoices):
     IN_PROGRESS = 'in progress', _('In Progress')
     COMPLETED = 'completed', _('Completed')
 
+
 class Project(models.Model):
     """
     Model representing a project.
@@ -69,6 +70,9 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_update = models.DateTimeField(auto_now=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
+
+    # Add a historical record to track changes
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Project'
