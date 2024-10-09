@@ -65,7 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
         token = RefreshToken.for_user(user).access_token
         
         
-        activation_url = f"http://localhost:8000{reverse('activate', kwargs={'token': str(token)})}"
+        activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
         
         
         send_mail(

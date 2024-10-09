@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from datetime import timedelta
 
+User = get_user_model()
 
 
 class UserViewSet(mixins.RetrieveModelMixin,
@@ -98,8 +99,6 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         return Response(response_data, status=status.HTTP_201_CREATED)
     
 
-User = get_user_model()
-
 
 class ActivateAccountView(APIView):
     """
@@ -180,7 +179,7 @@ class SignOutView(APIView):
             Exception: For any unexpected errors during the logout process.
         """
         try:
-            access_token = AccessToken(request.auth.token)
+            access_token = AccessToken(request.auth.token) if request.auth else None
             access_token.set_exp(lifetime=timedelta(seconds=0)) 
 
             refresh_token = request.data.get('refresh')
