@@ -32,8 +32,7 @@ DEBUG = os.environ.get('DEBUG')
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 
-
-# Application definition 
+# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -51,7 +50,6 @@ INSTALLED_APPS = [
     'investors',
     'rest_framework',
     'djoser'
-
 
 ]
 
@@ -225,7 +223,6 @@ DJOSER = {
 
 PHONENUMBER_DEFAULT_REGION = None  
 PHONENUMBER_DB_FORMAT = 'INTERNATIONAL'
-
 
 
 # Email settings

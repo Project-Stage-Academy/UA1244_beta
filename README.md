@@ -138,3 +138,8 @@ pip install -r requirements.txt
 ### Run pylint
 To run Pylint on a specific app, use:
 pylint --load-plugins pylint_django [your_django_app_folder]
+
+### Create Super User
+```shell
+cd forum && python manage.py createsuperuser
+```
