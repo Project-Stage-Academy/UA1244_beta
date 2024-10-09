@@ -127,3 +127,8 @@ cd forum && python manage.py makemigrations
 ```shell
 cd forum && python manage.py migrate
 ```
+
+### Create Super User
+```shell
+cd forum && python manage.py createsuperuser
+```

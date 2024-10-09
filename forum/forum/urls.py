@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from django.contrib.auth import views as auth_views
 
 
 
@@ -43,6 +44,12 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
 
     # Authentication URLs (using Djoser)
-    path('api/v1/auth/', include('djoser.urls')),       
-    path('api/v1/auth/', include('djoser.urls.jwt')),     
+    path('api/v1/auth/', include('djoser.urls')),
+    path('api/v1/auth/', include('djoser.urls.jwt')),
+
+    path('reset_password/', auth_views.PasswordResetView.as_view(), name ='reset_password'),
+    path('reset_password_sent/', auth_views.PasswordResetDoneView.as_view(), name ='password_reset_done'),
+    path('reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
+    path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
+
 ]
