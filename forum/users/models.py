@@ -69,7 +69,7 @@ class Role(models.Model):
 
 
     role_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES, null=False)
 
     class Meta:
         verbose_name = "Role"

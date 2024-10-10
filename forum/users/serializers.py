@@ -2,9 +2,35 @@ from rest_framework import serializers
 from .models import User, Role
 from django.contrib.auth.password_validation import validate_password
 from django.conf import settings
-from django.core.mail import send_mail
 from django.urls import reverse
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken
+from datetime import timedelta
+from .tasks import send_activation_email
+
+
+
+class CustomToken(AccessToken):
+    """
+    Custom token for user account activation.
+
+    This token is used specifically for account activation purposes and has a longer expiration time 
+    compared to the default access token. It inherits from the `AccessToken` class and can be 
+    customized to fit specific requirements, such as changing the lifetime of the token or adding 
+    custom claims.
+
+    Attributes:
+        token_type (str): Specifies the type of token (e.g., 'activation').
+        lifetime (timedelta): Defines the lifespan of the token. In this case, the token is valid for 2 days.
+    
+    Methods:
+        for_user(user):
+            Generates the activation token for a specific user.
+    """
+    
+    token_type = "activation"
+    lifetime = timedelta(days=2) 
+
+
 
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -27,15 +53,6 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
 
     class Meta:
-        """
-        Meta options for UserSerializer.
-
-        Attributes:
-            model (User): The User model being serialized.
-            fields (list): List of fields to include in the serialized output.
-            read_only_fields (tuple): Fields that should be read-only.
-            extra_kwargs (dict): Additional settings for specific fields.
-        """
         model = User
         fields = ['user_id', 'username', 'first_name', 'last_name', 'email', 'phone', 'roles', 'password', 'created_at', 'updated_at']
         read_only_fields = ('created_at', 'updated_at')
@@ -48,32 +65,27 @@ class UserSerializer(serializers.ModelSerializer):
         Create a new user instance with the given validated data.
 
         This method extracts roles from the validated data, creates a user,
-        hashes the password, and assigns roles to the user if provided.
+        hashes the password, assigns roles to the user if provided.
 
         Args:
             validated_data (dict): The validated data for creating a new user.
 
         Returns:
             User: The created user instance.
-        """
-        
+        """ 
         roles_data = validated_data.pop('roles', [])
-        user = User.objects.create_user(**validated_data)
+        password = validated_data.pop('password')  
+        
+       
+        user = User.objects.create_user(password=password, **validated_data)  
+       
         if roles_data:
             user.roles.set(roles_data)
-            
-        token = RefreshToken.for_user(user).access_token
-        
-        
+
         activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
         
-        
-        send_mail(
-            subject='Activate Your Account',
-            message=f'Hi {user.first_name},\n\nPlease click the link below to activate your account:\n{activation_url}',
-            from_email=settings.EMAIL_HOST_USER,  
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        token = CustomToken.for_user(user)
+        activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
+        send_activation_email.delay(user.user_id, activation_url)
 
         return user

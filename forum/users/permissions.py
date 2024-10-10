@@ -19,7 +19,7 @@ class IsAdmin(BasePermission):
         Returns:
             bool: True if the user is authenticated and has the role 'admin', False otherwise.
         """
-        return request.user and request.user.is_authenticated and request.user.roles.filter(role_name='admin').exists()
+        return request.user and request.user.is_authenticated and request.user.roles.filter(name='admin').exists()
 
 
 class IsOwner(BasePermission):
