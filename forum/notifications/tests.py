@@ -20,7 +20,7 @@ class NotificationTestCase(TestCase):
         Set up test data that will be used for all test cases in this suite.
         """
 
-        # Create a startup user and an investor user
+        
         cls.startup_user = User.objects.create_user(
             email='startup@example.com',
             password='password123',
@@ -39,19 +39,19 @@ class NotificationTestCase(TestCase):
             is_active=True
         )
 
-        # Create a startup (Онови це відповідно до того, які поля насправді є у моделі Startup)
+      
         cls.startup = Startup.objects.create(
-            user=cls.startup_user,  # Якщо є зв'язок із користувачем
-            # Використовуй реальні поля зі своєї моделі Startup
+            user=cls.startup_user,  
+           
         )
 
-        # Create an investor (теж використовуй правильні поля для моделі Investor)
+        
         cls.investor = Investor.objects.create(
-            user=cls.investor_user,  # Якщо є зв'язок із користувачем
-            # Використовуй реальні поля зі своєї моделі Investor
+            user=cls.investor_user,  
+            
         )
 
-        # Create a project associated with the startup
+        
         cls.project = Project.objects.create(
             startup=cls.startup,
             title='Test Project',
@@ -60,11 +60,11 @@ class NotificationTestCase(TestCase):
             status='open'
         )
 
-        # Generate JWT tokens for the users
+        
         cls.startup_token = str(RefreshToken.for_user(cls.startup_user).access_token)
         cls.investor_token = str(RefreshToken.for_user(cls.investor_user).access_token)
 
-        # Set up URLs for testing
+       
         cls.follow_url = reverse('projects:follow_project', args=[cls.project.id])
         cls.unfollow_url = reverse('projects:unfollow_project', args=[cls.project.id])
         cls.notifications_url = reverse('notifications:notification_list')
@@ -88,11 +88,11 @@ class NotificationTestCase(TestCase):
         """
         self.authenticate(self.investor_token)
 
-        # Send a POST request to follow the project
+        
         response = self.client.post(self.follow_url)
         self.assertEqual(response.status_code, 201)
 
-        # Verify that a notification was created
+        
         notification_exists = Notification.objects.filter(
             project=self.project,
             investor=self.investor,
@@ -108,14 +108,14 @@ class NotificationTestCase(TestCase):
         """
         self.authenticate(self.investor_token)
 
-        # Follow the project first
+       
         self.client.post(self.follow_url)
 
-        # Now unfollow the project
+        
         response = self.client.post(self.unfollow_url)
         self.assertEqual(response.status_code, 200)
 
-        # Verify that another notification was created for unfollow
+        
         notification_exists = Notification.objects.filter(
             project=self.project,
             investor=self.investor,
@@ -131,14 +131,14 @@ class NotificationTestCase(TestCase):
         """
         self.authenticate(self.startup_token)
 
-        # Send a PUT request to update notification settings
+        
         data = {
             'email_project_updates': False
         }
         response = self.client.put(self.notification_settings_url, data, format='json')
         self.assertEqual(response.status_code, 200)
 
-        # Check that the email notification setting was turned off
+        
         self.assertFalse(response.data['email_project_updates'])
 
     def test_turn_off_push_notifications(self):
@@ -147,28 +147,28 @@ class NotificationTestCase(TestCase):
         """
         self.authenticate(self.startup_token)
 
-        # Send a PUT request to update notification settings
+        
         data = {
             'push_project_updates': False
         }
         response = self.client.put(self.notification_settings_url, data, format='json')
         self.assertEqual(response.status_code, 200)
 
-        # Check that the push notification setting was turned off
+       
         self.assertFalse(response.data['push_project_updates'])
 
     def test_unauthorized_user_cannot_follow_project(self):
         """
         Test that an unauthorized user cannot follow a project.
         """
-        # Try to follow the project without authentication
+        
         response = self.client.post(self.follow_url)
-        self.assertEqual(response.status_code, 401)  # Expecting an unauthorized error
+        self.assertEqual(response.status_code, 401)  
 
     def test_unauthorized_user_cannot_unfollow_project(self):
         """
         Test that an unauthorized user cannot unfollow a project.
         """
-        # Try to unfollow the project without authentication
+        
         response = self.client.post(self.unfollow_url)
-        self.assertEqual(response.status_code, 401)  # Expecting an unauthorized error
+        self.assertEqual(response.status_code, 401)  
