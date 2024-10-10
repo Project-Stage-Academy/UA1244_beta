@@ -23,7 +23,7 @@ from rest_framework_simplejwt.views import (
 )
 from users.api_view import ActivateAccountView, SignOutView
 from django.contrib.auth import views as auth_views
-
+from django.http import JsonResponse
 
 
 urlpatterns = [
@@ -45,7 +45,7 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  
 
     # Authentication URLs (using Djoser)
-    path('api/v1/auth/', include('djoser.urls')),       
+    path('api/v1/auth/', include('djoser.urls')),
     path('api/v1/auth/', include('djoser.urls.jwt')),
 
     path('activate/<str:token>/', ActivateAccountView.as_view(), name='activate'),
@@ -59,3 +59,9 @@ urlpatterns = [
     path('reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
     path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
 ]
+
+
+def custom_page_not_found(request, exception):
+    return JsonResponse({'error': 'The requested resource was not found'}, status=404)
+
+handler404 = custom_page_not_found
