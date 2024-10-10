@@ -3,6 +3,7 @@ from startups.models import Location
 import uuid
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
+from users.models import User
 
 
 def validate_image_size(value):
