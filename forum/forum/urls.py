@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from users.api_view import ActivateAccountView, SignOutView
 
 
 
@@ -44,5 +45,10 @@ urlpatterns = [
 
     # Authentication URLs (using Djoser)
     path('api/v1/auth/', include('djoser.urls')),       
-    path('api/v1/auth/', include('djoser.urls.jwt')),     
+    path('api/v1/auth/', include('djoser.urls.jwt')),
+
+    path('activate/<str:token>/', ActivateAccountView.as_view(), name='activate'),
+    
+    # Logout URL
+    path('api/v1/logout/', SignOutView.as_view(), name='logout'),
 ]
