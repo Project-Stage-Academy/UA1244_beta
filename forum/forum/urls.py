@@ -22,7 +22,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 from django.contrib.auth import views as auth_views
-
+from django.http import JsonResponse
 
 
 urlpatterns = [
@@ -45,9 +45,15 @@ urlpatterns = [
     path('api/v1/auth/', include('djoser.urls')),
     path('api/v1/auth/', include('djoser.urls.jwt')),
 
-    path('reset_password/', auth_views.PasswordResetView.as_view(), name ='reset_password'),
-    path('reset_password_sent/', auth_views.PasswordResetDoneView.as_view(), name ='password_reset_done'),
-    path('reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
-    path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
+    path('api/v1/auth/reset_password/', auth_views.PasswordResetView.as_view(), name ='reset_password'),
+    path('api/v1/auth/reset_password_sent/', auth_views.PasswordResetDoneView.as_view(), name ='password_reset_done'),
+    path('api/v1/auth/reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
+    path('api/v1/auth/reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
 
 ]
+
+
+def custom_page_not_found(request, exception):
+    return JsonResponse({'error': 'The requested resource was not found'}, status=404)
+
+handler404 = custom_page_not_found
