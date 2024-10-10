@@ -78,10 +78,11 @@ class UserSerializer(serializers.ModelSerializer):
         
        
         user = User.objects.create_user(password=password, **validated_data)  
-        
+       
         if roles_data:
             user.roles.set(roles_data)
 
+        activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
         
         token = CustomToken.for_user(user)
         activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"

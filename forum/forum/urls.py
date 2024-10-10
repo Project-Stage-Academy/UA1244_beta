@@ -21,7 +21,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-from users.api_view import ActivateAccountView
+from users.api_view import ActivateAccountView, SignOutView
 
 
 
@@ -35,6 +35,8 @@ urlpatterns = [
     path("profiles/", include("profiles.urls")),
     path("communications/", include("communications.urls")),
     path("dashboard/", include("dashboard.urls")),
+    path("investors/", include("investors.urls")),
+    path("startups/", include("startups.urls")),
 
     # JWT Token URLs
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
@@ -45,5 +47,8 @@ urlpatterns = [
     path('api/v1/auth/', include('djoser.urls')),       
     path('api/v1/auth/', include('djoser.urls.jwt')),
 
-    path('activate/<str:token>/', ActivateAccountView.as_view(), name='activate'),   
+    path('activate/<str:token>/', ActivateAccountView.as_view(), name='activate'),
+    
+    # Logout URL
+    path('api/v1/logout/', SignOutView.as_view(), name='logout'),
 ]

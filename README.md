@@ -127,3 +127,14 @@ cd forum && python manage.py makemigrations
 ```shell
 cd forum && python manage.py migrate
 ```
+
+## Code Quality
+We use Pylint for static code analysis to maintain code quality and consistency.
+
+### Installation
+Make sure to install the required dependencies:
+pip install -r requirements.txt
+
+### Run pylint
+To run Pylint on a specific app, use:
+pylint --load-plugins pylint_django [your_django_app_folder]
