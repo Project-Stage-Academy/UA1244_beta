@@ -30,6 +30,9 @@ class Notification(models.Model):
     redirection_url = models.URLField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
+        """
+        Automatically set the redirection URL based on the notification trigger type.
+        """
         if not self.redirection_url:
             if self.trigger == 'project_follow':
                 self.redirection_url = f'/projects/{self.project.id}/'
@@ -39,6 +42,7 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'Notification {self.trigger} for {self.initiator}'
+
 
 class StartupNotificationPreferences(models.Model):
     """
@@ -52,6 +56,7 @@ class StartupNotificationPreferences(models.Model):
 
     def __str__(self):
         return f'Notification Preferences for {self.startup}'
+
 
 class InvestorNotificationPreferences(models.Model):
     """

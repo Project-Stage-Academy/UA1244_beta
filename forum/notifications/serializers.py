@@ -2,12 +2,9 @@ from rest_framework import serializers
 from .models import Notification, StartupNotificationPreferences, InvestorNotificationPreferences
 
 class NotificationSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Notification model.
-    """
     class Meta:
         model = Notification
-        fields = ['project', 'startup', 'investor', 'trigger', 'initiator', 'date_time', 'redirection_url']
+        fields = ['id', 'trigger', 'is_read', 'redirection_url', 'date_time']
 
 class StartupNotificationPrefsSerializer(serializers.ModelSerializer):
     """

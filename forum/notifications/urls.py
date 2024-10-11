@@ -1,11 +1,16 @@
-from django.urls import path
-from .api_view import NotificationListView, NotificationPrefsViewSet, MarkNotificationAsReadView, FollowProjectView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .api_view import NotificationViewSet, NotificationPrefsViewSet, MarkAsReadView, DeleteNotificationView, NotificationPreferenceAPIView
+from .views import NotificationPreferencesUpdateView
 
-app_name = 'notifications'
+router = DefaultRouter()
+router.register(r'notifications', NotificationViewSet, basename='notification')
+router.register(r'notification-prefs', NotificationPrefsViewSet, basename='notificationpreferences')
 
 urlpatterns = [
-    path('notifications/', NotificationListView.as_view(), name='notification_list'),
-    path('preferences/', NotificationPrefsViewSet.as_view({'get': 'retrieve', 'put': 'update'}), name='notification_prefs'),
-    path('notifications/read/<int:notification_id>/', MarkNotificationAsReadView.as_view(), name='mark_notification_as_read'),
-    path('projects/<uuid:project_id>/follow/', FollowProjectView.as_view(), name='follow_project'),
+    path('', include(router.urls)),
+    path('notifications/mark-read/<int:notification_id>/', MarkAsReadView.as_view(), name='mark-as-read'),
+    path('notifications/delete/<int:notification_id>/', DeleteNotificationView.as_view(), name='delete-notification'),
+    path('profile/notifications/', NotificationPreferencesUpdateView.as_view(), name='notification-prefs-update'),
+    path('api/notifications/preferences/', NotificationPreferenceAPIView.as_view(), name='notification-prefs-update'),
 ]
