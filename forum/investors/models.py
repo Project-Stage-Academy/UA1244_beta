@@ -1,10 +1,14 @@
 from django.db import models
+from django.contrib.auth import get_user_model
+from startups.models import Startup
 from startups.models import Location
 import uuid
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
 from users.models import User
+
+User = get_user_model()
 
 
 def validate_image_size(value):
@@ -53,3 +57,33 @@ class Investor(models.Model):
 
     def __str__(self):
         return self.company_name
+
+
+class InvestorStartup(models.Model):
+    """
+    Represents a many-to-many relationship between investors and startups, 
+    indicating which investors are following which startups.
+
+    Attributes:
+        investor_id (ForeignKey): A reference to the User model, representing 
+        the investor who follows a startup. The relationship is set to cascade 
+        on deletion, meaning if the user is deleted, their follows will also be removed.
+
+        startup_id (ForeignKey): A reference to the Startup model, representing 
+        the startup being followed by the investor. Like the investor, this relationship 
+        also cascades on deletion.
+
+        saved_at (DateTimeField): A timestamp indicating when the investor 
+        started following the startup. This field is automatically set to 
+        the current date and time when the relationship is created.
+    """
+
+    investor_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='investor_startups')
+    startup_id = models.ForeignKey(Startup, on_delete=models.CASCADE, related_name='startup_investors')
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('investor_id', 'startup_id')
+
+    def __str__(self):
+        return f"{self.investor.username} follows {self.startup.company_name}"
