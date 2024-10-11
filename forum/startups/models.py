@@ -1,12 +1,16 @@
 from django.db import models
 import uuid
 
+from users.models import User
+
+
 class FundingStage(models.TextChoices):
     SEED = 'Seed', 'Seed'
     SERIES_A = 'Series A', 'Series A'
     SERIES_B = 'Series B', 'Series B'
     SERIES_C = 'Series C', 'Series C'
     IPO = 'IPO', 'Initial Public Offering'
+
 
 class Location(models.Model):
     """
@@ -22,6 +26,7 @@ class Location(models.Model):
     city = models.CharField(max_length=50, null=True)
     country = models.CharField(max_length=50, null=True)
     city_code = models.CharField(max_length=10, null=True)
+    app_label = 'startups'
 
 
     class Meta:
