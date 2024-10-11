@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Project
+from startups.models import Startup
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -9,6 +11,8 @@ class ProjectSerializer(serializers.ModelSerializer):
     This serializer validates and serializes the fields of the Project model
     for creating and updating project instances.
     """
+    startup = serializers.PrimaryKeyRelatedField(queryset=Startup.objects.all())
+
     class Meta:
         model = Project
         fields = [
@@ -17,7 +21,7 @@ class ProjectSerializer(serializers.ModelSerializer):
                 'actual_finish_date', 'created_at', 'last_update', 'media'
         ]
 
-    def validate_name(self, value):
+    def validate_title(self, value):
         """
         Validate the uniqueness of the project title.
 
@@ -34,6 +38,6 @@ class ProjectSerializer(serializers.ModelSerializer):
             serializers.ValidationError: If the project title already exists.
         """
 
-        if Project.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Project with this name already exists.")
+        if Project.objects.filter(title=value).exists():
+            raise serializers.ValidationError("Project with this title already exists.")
         return value
