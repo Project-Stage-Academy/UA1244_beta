@@ -9,11 +9,20 @@ from rest_framework_simplejwt.tokens import RefreshToken
 User = get_user_model()
 
 class NotificationTests(APITestCase):
-    
+    """
+    A TestCase class to test various functionalities of notifications
+    including creating, updating, retrieving, and deleting notifications.
+    """
+
     def setUp(self):
+        """
+        Set up necessary test data, including a test user, startup, investor,
+        project, and notification. Also, obtain an authentication token for
+        further requests.
+        """
         self.client = APIClient()
         
-        # Створення користувача для тестів
+        # Create a test user
         self.user_data = {
             'email': 'frent3219@gmail.com',
             'password': 'SecurePassword263!',
@@ -22,32 +31,32 @@ class NotificationTests(APITestCase):
         self.user = User.objects.create_user(**self.user_data)
         self.user.save()
 
-        # Логін і отримання токена
-        response = self.client.post(reverse('token_obtain_pair'), {
+        # Log in and obtain a token
+        response = self.client.post(reverse('token_obtain'), {
             'email': self.user_data['email'], 
             'password': self.user_data['password']
         })
         
         if response.status_code != status.HTTP_200_OK:
-            self.fail(f"Не вдалося отримати токен доступу. Код відповіді: {response.status_code}, дані: {response.data}")
+            self.fail(f"Failed to obtain access token. Response code: {response.status_code}, data: {response.data}")
 
-        # Отримання токену
+        # Extract token
         self.token = response.data.get('access')
         self.refresh_token = response.data.get('refresh')
 
         if not self.token:
-            self.fail("Не вдалося отримати токен доступу із відповіді.")
-    
-        # Додавання токену до заголовків
+            self.fail("Failed to retrieve access token from response.")
+
+        # Set the token in the headers
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
         
-        # Створення даних для тестів
+        # Create test data for startup, investor, project, and notification
         self.startup = Startup.objects.create(user=self.user, company_name='Startup A')
         self.investor = Investor.objects.create(user=self.user)
         self.project = Project.objects.create(startup=self.startup, title='Project A', description='Description A', required_amount=10000.00)
         self.startup_prefs = StartupNotificationPreferences.objects.create(startup=self.startup)
         
-        # Створення сповіщення
+        # Create a notification
         self.notification = Notification.objects.create(
             investor=self.investor,
             startup=self.startup,
@@ -58,11 +67,19 @@ class NotificationTests(APITestCase):
         )
 
     def test_get_notification_preferences_for_startup(self):
+        """
+        Test the retrieval of notification preferences for a startup.
+        Verifies that the preferences are correctly fetched.
+        """
         url = reverse('notificationpreferences-detail', kwargs={'pk': self.startup_prefs.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_update_notification_preferences_for_startup(self):
+        """
+        Test the update of notification preferences for a startup.
+        Verifies that the preferences can be updated and saved correctly.
+        """
         url = reverse('notification-prefs-update')
         response = self.client.post(url, {
             'email_project_updates': True,
@@ -73,6 +90,10 @@ class NotificationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_get_notifications_list(self):
+        """
+        Test the retrieval of a list of notifications.
+        Verifies that the notifications list is correctly fetched.
+        """
         url = reverse('notification-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -80,11 +101,19 @@ class NotificationTests(APITestCase):
         self.assertEqual(len(response.data), 1)
 
     def test_mark_notification_as_read(self):
+        """
+        Test marking a notification as read.
+        Verifies that the notification is correctly marked as read.
+        """
         url = reverse('mark-as-read', kwargs={'notification_id': self.notification.pk})
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_delete_notification(self):
+        """
+        Test deleting a notification.
+        Verifies that the notification is correctly deleted.
+        """
         url = reverse('delete-notification', kwargs={'notification_id': self.notification.pk})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -93,12 +122,13 @@ class NotificationTests(APITestCase):
 
 class NotificationModelTest(APITestCase):
     """
-    Test cases for Notification model functionalities.
+    A TestCase class to test various functionalities of the Notification model.
     """
 
     def setUp(self):
         """
-        Set up executed before each test case.
+        Set up necessary test data for the Notification model, including user,
+        startup, investor, project, and notification.
         """
         self.user = User.objects.create_user(username='testuser', email='testuser@example.com', password='password123')
         self.startup = Startup.objects.create(user=self.user, company_name='Test Startup')
@@ -115,13 +145,14 @@ class NotificationModelTest(APITestCase):
 
     def test_notification_creation(self):
         """
-        Test to verify notification creation.
+        Test to verify that a notification is correctly created in the database.
         """
         self.assertEqual(Notification.objects.count(), 1)
 
     def test_notification_serializer(self):
         """
-        Test to verify the Notification serializer.
+        Test to verify that the NotificationSerializer works as expected.
+        Checks that the 'trigger' and 'is_read' fields are serialized correctly.
         """
         serializer = NotificationSerializer(self.notification)
         self.assertIn('trigger', serializer.data)
@@ -129,7 +160,8 @@ class NotificationModelTest(APITestCase):
 
     def test_startup_notification_prefs_serializer(self):
         """
-        Test to verify the StartupNotificationPreferences serializer.
+        Test to verify that the StartupNotificationPreferences serializer works as expected.
+        Checks that the 'email_project_updates' field is serialized correctly.
         """
         serializer = StartupNotificationPrefsSerializer(self.startup_prefs)
         self.assertIn('email_project_updates', serializer.data)

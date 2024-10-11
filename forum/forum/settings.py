@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     'startups',
     'notifications',
     'channels',
+    'django_extensions',
+
 
 
 ]

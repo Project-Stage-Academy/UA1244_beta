@@ -1,7 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .api_view import NotificationViewSet, NotificationPrefsViewSet, MarkAsReadView, DeleteNotificationView, NotificationPreferenceAPIView
-from .views import NotificationPreferencesUpdateView
+from .api_view import NotificationViewSet, NotificationPrefsViewSet, MarkAsReadView, DeleteNotificationView
 
 router = DefaultRouter()
 router.register(r'notifications', NotificationViewSet, basename='notification')
@@ -11,6 +10,4 @@ urlpatterns = [
     path('', include(router.urls)),
     path('notifications/mark-read/<int:notification_id>/', MarkAsReadView.as_view(), name='mark-as-read'),
     path('notifications/delete/<int:notification_id>/', DeleteNotificationView.as_view(), name='delete-notification'),
-    path('profile/notifications/', NotificationPreferencesUpdateView.as_view(), name='notification-prefs-update'),
-    path('api/notifications/preferences/', NotificationPreferenceAPIView.as_view(), name='notification-prefs-update'),
 ]

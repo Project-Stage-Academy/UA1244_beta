@@ -33,11 +33,11 @@ urlpatterns = [
     path("api/v1/", include("users.urls")),
     # path("projects/", include("projects.urls")),
     # path("profiles/", include("profiles.urls")),
-    path("communications/", include("communications.urls")),
+    # path("communications/", include("communications.urls")),
     # path("dashboard/", include("dashboard.urls")),
     # path("investors/", include("investors.urls")),
     # path("startups/", include("startups.urls")),
-    path("notifications/", include("notifications.urls")),
+    path("api/v1/", include("notifications.urls")),
 
     # JWT Token URLs
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
