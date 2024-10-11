@@ -1,3 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import render, HttpResponse
+import logging
 
-# Create your views here.
+logger = logging.getLogger(__name__)
+
+
+def projects(request):
+    try:
+        logger.info("Processing the request.")
+        return HttpResponse("Not implemented")
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")
