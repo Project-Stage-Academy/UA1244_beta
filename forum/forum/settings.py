@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     'dashboard',
     'investors',
     'rest_framework',
-    'djoser'
+    'djoser',
+    "startups"
 
 ]
 
