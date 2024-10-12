@@ -48,4 +48,7 @@ vine==5.1.0
 wcwidth==0.2.13
 redis==5.1.1
 channels==4.1.0
+django-extensions==3.2.3
+channels_redis==4.2.0 
+msgpack==1.1.0
 

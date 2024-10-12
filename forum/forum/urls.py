@@ -39,6 +39,7 @@ urlpatterns = [
     # path("startups/", include("startups.urls")),
     path("api/v1/", include("notifications.urls")),
 
+
     # JWT Token URLs
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

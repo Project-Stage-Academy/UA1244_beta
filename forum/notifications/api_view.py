@@ -3,10 +3,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
 from .models import Notification, StartupNotificationPreferences, InvestorNotificationPreferences, Startup, Investor
 from .serializers import NotificationSerializer, StartupNotificationPrefsSerializer, InvestorNotificationPrefsSerializer, TriggerNotificationSerializer
 from .tasks import trigger_notification_task
+from .permissions import IsInvestor, IsStartup
+from django.core.exceptions import ValidationError
 
 
 def create_error_response(message, status_code):
@@ -14,46 +15,59 @@ def create_error_response(message, status_code):
     Helper function to create a standardized error response.
 
     Args:
-        message (str): The error message to return in the response.
+        message (str or dict): The error message or dictionary of errors to return in the response.
         status_code (int): The HTTP status code for the response.
 
     Returns:
         Response: A DRF Response object with the error message and status code.
     """
-    return Response({'error': message}, status=status_code)
+    if isinstance(message, str):
+        return Response({'error': message}, status=status_code)
+    return Response(message, status=status_code)
+
+
+def get_user_role_and_object(user):
+    """
+    Helper function to get the user's role (investor/startup) and corresponding object.
+    
+    Args:
+        user: The authenticated user.
+    
+    Returns:
+        tuple: The role ('investor' or 'startup') and the corresponding object (Investor or Startup).
+    """
+    if hasattr(user, 'investor'):
+        return 'investor', user.investor
+    elif hasattr(user, 'startup'):
+        return 'startup', user.startup
+    return None, None
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing notifications.
-
-    Methods:
-        get_queryset(): Retrieves notifications based on the user's type (investor/startup).
-        trigger_notification(): Custom action to asynchronously trigger a notification.
     """
     serializer_class = NotificationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInvestor | IsStartup]
 
     def get_queryset(self):
         """
         Returns the notifications related to the authenticated user, either as an investor or startup.
-
+        Optimizes the query by using select_related to prefetch related models.
+        
         Returns:
             QuerySet: The notifications related to the user or none if they are neither an investor nor startup.
         """
         user = self.request.user
         if hasattr(user, 'investor'):
-            return Notification.objects.filter(investor=user.investor)
+            return Notification.objects.filter(investor=user.investor).select_related('investor', 'startup')
         elif hasattr(user, 'startup'):
-            return Notification.objects.filter(startup=user.startup)
+            return Notification.objects.filter(startup=user.startup).select_related('investor', 'startup')
         return Notification.objects.none()
 
     def perform_update(self, serializer):
         """
         Marks a notification as read when it is updated.
-
-        Args:
-            serializer: The serializer used to save the notification instance.
         """
         instance = serializer.save()
         if not instance.is_read:
@@ -63,9 +77,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         """
         Deletes a notification.
-
-        Args:
-            instance: The notification instance to delete.
         """
         instance.delete()
 
@@ -73,15 +84,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def trigger_notification(self, request):
         """
         Custom action to trigger a notification asynchronously.
-
-        Expects the following in the request body:
-        - investor_id
-        - startup_id
-        - project_id
-        - trigger_type
-
-        Returns:
-            Response: Message indicating that the notification trigger has been started.
         """
         serializer = TriggerNotificationSerializer(data=request.data)
         if serializer.is_valid():
@@ -100,17 +102,13 @@ class NotificationViewSet(viewsets.ModelViewSet):
 class NotificationPrefsViewSet(viewsets.ViewSet):
     """
     ViewSet for managing notification preferences for investors and startups.
-
-    Methods:
-        create(): Create notification preferences for authenticated user based on their role.
-        list(): Retrieve notification preferences for the authenticated user.
-        update(): Update notification preferences for the authenticated user.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInvestor | IsStartup]
 
     def get_preferences_and_serializer(self, user):
         """
-        Helper function to get notification preferences and the corresponding serializer based on the user's role.
+        Helper function to get notification preferences and the corresponding serializer
+        based on the user's role (investor or startup).
 
         Args:
             user: The authenticated user.
@@ -118,53 +116,44 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
         Returns:
             tuple: The preferences instance and its corresponding serializer class.
         """
-        if hasattr(user, 'investor'):
-            prefs, _ = InvestorNotificationPreferences.objects.get_or_create(investor=user.investor)
-            return prefs, InvestorNotificationPrefsSerializer
-        elif hasattr(user, 'startup'):
-            prefs, _ = StartupNotificationPreferences.objects.get_or_create(startup=user.startup)
-            return prefs, StartupNotificationPrefsSerializer
-        return create_error_response("Notification preferences cannot be created for this user.", status.HTTP_400_BAD_REQUEST)
+        if user.roles.filter(name='investor').exists():
+            try:
+                investor = Investor.objects.get(user=user)
+                prefs, _ = InvestorNotificationPreferences.objects.get_or_create(investor=investor)
+                return prefs, InvestorNotificationPrefsSerializer
+            except Investor.DoesNotExist:
+                raise ValidationError(f"Investor for user {user.email} not found.")
+
+        elif user.roles.filter(name='startup').exists():
+            try:
+                startup = Startup.objects.get(user=user)
+                prefs, _ = StartupNotificationPreferences.objects.get_or_create(startup=startup)
+                return prefs, StartupNotificationPrefsSerializer
+            except Startup.DoesNotExist:
+                raise ValidationError(f"Startup for user {user.email} not found.")
+
+        raise ValidationError("Notification preferences cannot be created for this user, as they are neither an investor nor a startup.")
+
 
     def create(self, request):
         """
         Creates notification preferences for the authenticated user based on their role.
 
-        If the user is either an investor or startup, the system will attempt to create or retrieve their preferences.
-        If the user has no such role, it raises a validation error.
-
         Returns:
             Response: The created or updated preferences, or a 400 error if validation fails.
         """
-        user = request.user
+        try:
+            prefs, serializer_class = self.get_preferences_and_serializer(request.user)
+            serializer = serializer_class(prefs, data=request.data)
 
-        # If the user is an investor, try to create or retrieve preferences
-        if user.roles.filter(name='investor').exists():
-            try:
-                investor = Investor.objects.get(user=user)
-                prefs, created = InvestorNotificationPreferences.objects.get_or_create(investor=investor)
-            except Investor.DoesNotExist:
-                return create_error_response(f"Investor for user {user.email} not found, preferences not created.", status.HTTP_400_BAD_REQUEST)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return create_error_response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
-            serializer = InvestorNotificationPrefsSerializer(prefs, data=request.data)
+        except ValidationError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
-        # If the user is a startup, try to create or retrieve preferences
-        elif user.roles.filter(name='startup').exists():
-            try:
-                startup = Startup.objects.get(user=user)
-                prefs, created = StartupNotificationPreferences.objects.get_or_create(startup=startup)
-            except Startup.DoesNotExist:
-                return create_error_response(f"Startup for user {user.email} not found, preferences not created.", status.HTTP_400_BAD_REQUEST)
-
-            serializer = StartupNotificationPrefsSerializer(prefs, data=request.data)
-
-        else:
-            return create_error_response("Notification preferences cannot be created for this user, as they are neither an investor nor a startup.", status.HTTP_400_BAD_REQUEST)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return create_error_response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
     def list(self, request):
         """
@@ -173,9 +162,14 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
         Returns:
             Response: The notification preferences for the user.
         """
-        prefs, serializer_class = self.get_preferences_and_serializer(request.user)
-        serializer = serializer_class(prefs)
-        return Response(serializer.data)
+        try:
+            prefs, serializer_class = self.get_preferences_and_serializer(request.user)
+            serializer = serializer_class(prefs)
+            return Response(serializer.data)
+
+        except ValidationError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
+
 
     def update(self, request, pk=None):
         """
@@ -184,39 +178,35 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
         Returns:
             Response: The updated preferences or validation errors if any.
         """
-        prefs, serializer_class = self.get_preferences_and_serializer(request.user)
-        serializer = serializer_class(prefs, data=request.data, partial=True)
+        try:
+            prefs, serializer_class = self.get_preferences_and_serializer(request.user)
+            serializer = serializer_class(prefs, data=request.data, partial=True)
 
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return create_error_response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return create_error_response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+
+        except ValidationError as e:
+            return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
 
 class MarkAsReadView(APIView):
     """
     API View to mark a specific notification as read.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInvestor | IsStartup]
 
     def post(self, request, notification_id):
         """
         Marks a specific notification as read if the user has permission.
-
-        Args:
-            notification_id: The ID of the notification to mark as read.
-
-        Returns:
-            Response: A success message or an error if the notification was not found or permission denied.
         """
         try:
             notification = Notification.objects.get(id=notification_id)
-            if (notification.startup and request.user == notification.startup.user) or \
-               (notification.investor and request.user == notification.investor.user):
-                notification.is_read = True
-                notification.save()
-                return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
-            return create_error_response('Permission denied', status.HTTP_403_FORBIDDEN)
+            self.check_object_permissions(request, notification)
+            notification.is_read = True
+            notification.save()
+            return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
         except Notification.DoesNotExist:
             return create_error_response('Notification not found', status.HTTP_404_NOT_FOUND)
 
@@ -225,24 +215,17 @@ class DeleteNotificationView(APIView):
     """
     API View to delete a specific notification.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInvestor | IsStartup]
 
     def delete(self, request, notification_id):
         """
         Deletes a specific notification if the user has permission.
-
-        Args:
-            notification_id: The ID of the notification to delete.
-
-        Returns:
-            Response: A success message or an error if the notification was not found or permission denied.
         """
         try:
             notification = Notification.objects.get(id=notification_id)
-            if (notification.startup and request.user == notification.startup.user) or \
-               (notification.investor and request.user == notification.investor.user):
-                notification.delete()
-                return Response({'message': 'Notification deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-            return create_error_response('Permission denied', status.HTTP_403_FORBIDDEN)
+            self.check_object_permissions(request, notification)
+            notification.delete()
+            return Response({'message': 'Notification deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
         except Notification.DoesNotExist:
             return create_error_response('Notification not found', status.HTTP_404_NOT_FOUND)
+

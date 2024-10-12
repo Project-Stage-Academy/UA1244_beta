@@ -2,6 +2,7 @@ from django.db import models
 from projects.models import Project
 from investors.models import Investor
 from startups.models import Startup
+from django.core.exceptions import ValidationError
 
 class Notification(models.Model):
     """
@@ -31,19 +32,35 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     redirection_url = models.URLField(blank=True, null=True)
 
+    def clean(self):
+        """
+        Custom validation to ensure at least one related entity (project, startup, or investor) is provided.
+        Raises a ValidationError if none of the related entities are set.
+        """
+        if not self.project and not self.startup and not self.investor:
+            raise ValidationError('At least one of project, startup, or investor must be set.')
+
+    def set_redirection_url(self):
+        """
+        Set the redirection URL based on the trigger and associated objects.
+        If no associated object is available, assign a default testing URL.
+        """
+        redirection_mapping = {
+            'project_follow': f'/projects/{self.project.id}/' if self.project else None,
+            'startup_profile_update': f'/startups/{self.startup.id}/' if self.startup else None
+        }
+        self.redirection_url = redirection_mapping.get(self.trigger, 'http://example.com/fake-url-for-testing/')
+        
+        if not self.redirection_url:
+            print('Warning: No associated project or startup for redirection')
+
     def save(self, *args, **kwargs):
         """
-        Automatically set the redirection URL based on the notification trigger type.
-        If no redirection URL is provided, it assigns a default URL.
+        Automatically set the redirection URL and validate the notification instance before saving.
         """
+        self.clean()  
         if not self.redirection_url:
-            if self.trigger == 'project_follow' and self.project:
-                self.redirection_url = f'/projects/{self.project.id}/'
-            elif self.trigger == 'startup_profile_update' and self.startup:
-                self.redirection_url = f'/startups/{self.startup.id}/'
-            else:
-                self.redirection_url = 'http://example.com/fake-url-for-testing/'
-                print('Warning: No associated project or startup for redirection')
+            self.set_redirection_url()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -51,6 +68,7 @@ class Notification(models.Model):
         String representation of the Notification instance.
         """
         return f'Notification {self.trigger} for {self.initiator}'
+
 
 
 class StartupNotificationPreferences(models.Model):
