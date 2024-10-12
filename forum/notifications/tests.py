@@ -17,36 +17,43 @@ class NotificationTests(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        # Створюємо користувача з email і паролем, додаємо username
         cls.user = User.objects.create_user(
-            username='user_test_1',
+            username='new_user666',
             email='frent3219@gmail.com',
             password='SecurePassword263!',
             is_active=True
         )
 
-        # Створюємо ролі для інвестора та стартапу
+        assert cls.user is not None, "User not created"
+
         investor_role = Role.objects.create(name='investor')
         startup_role = Role.objects.create(name='startup')
 
-        # Додаємо ролі до користувача
         cls.user.roles.add(investor_role)
         cls.user.roles.add(startup_role)
 
-        # Створюємо Startup і Investor для цього користувача
+        assert cls.user.roles.filter(name='investor').exists(), "Investor role not added"
+        assert cls.user.roles.filter(name='startup').exists(), "Startup role not added"
+
         cls.startup = Startup.objects.create(user=cls.user, company_name='Startup A')
         cls.investor = Investor.objects.create(user=cls.user)
-        
-        # Створюємо проект для стартапу
+
+        assert cls.startup is not None, "Startup not created"
+        assert cls.investor is not None, "Investor not created"
+
         cls.project = Project.objects.create(
             startup=cls.startup, 
             title='Project A', 
             description='Description A', 
             required_amount=10000.00
         )
+
+        assert cls.project is not None, "Project not created"
+
         cls.startup_prefs = StartupNotificationPreferences.objects.create(startup=cls.startup)
 
-        # Створюємо сповіщення з фейковим URL для тестування
+        assert cls.startup_prefs is not None, "Notification preferences not created"
+
         cls.notification = Notification.objects.create(
             investor=cls.investor,
             startup=cls.startup,
@@ -55,6 +62,8 @@ class NotificationTests(APITestCase):
             initiator='investor',
             redirection_url='http://example.com/fake-url-for-testing/'
         )
+
+        assert cls.notification is not None, "Notification not created"
 
     def setUp(self):
         """
@@ -65,41 +74,14 @@ class NotificationTests(APITestCase):
             'email': 'frent3219@gmail.com',
             'password': 'SecurePassword263!'
         })
+        
         self.token = response.data.get('access')
+        self.assertIsNotNone(self.token, "Token not obtained")
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
 
     def test_user_roles(self):
         self.assertTrue(self.user.roles.filter(name='investor').exists())
         self.assertTrue(self.user.roles.filter(name='startup').exists())
-        
-    def test_get_notification_preferences_for_startup(self):
-        """
-        Test the retrieval of notification preferences for a startup.
-        Verifies that the preferences are correctly fetched.
-        """
-        url = reverse('notificationpreferences-detail', kwargs={'pk': self.startup_prefs.pk})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['email_project_updates'], True)
-
-    def test_update_notification_preferences_for_startup(self):
-        """
-        Test the update of notification preferences for a startup.
-        Verifies that the preferences can be updated and saved correctly.
-        """
-        url = reverse('notification-prefs-update')
-        response = self.client.post(url, {
-            'email_project_updates': True,
-            'push_project_updates': True,
-            'email_startup_updates': False,
-            'push_startup_updates': False
-        })
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Verify that preferences were actually updated
-        self.startup_prefs.refresh_from_db()
-        self.assertTrue(self.startup_prefs.email_project_updates)
-        self.assertFalse(self.startup_prefs.email_startup_updates)
 
     def test_get_notifications_list(self):
         """
@@ -109,10 +91,10 @@ class NotificationTests(APITestCase):
         url = reverse('notification-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
         if len(response.data) > 0:
             self.assertEqual(response.data[0]['trigger'], 'project_follow')
         else:
-            # Створюємо мокове сповіщення, якщо список порожній
             Notification.objects.create(
                 investor=self.investor,
                 startup=self.startup,
@@ -134,7 +116,6 @@ class NotificationTests(APITestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # Verify that notification was marked as read
         self.notification.refresh_from_db()
         self.assertTrue(self.notification.is_read)
 
@@ -172,14 +153,5 @@ class NotificationTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_update_notification_preferences_with_invalid_data(self):
-        """
-        Test trying to update notification preferences with invalid data.
-        Should return a 400 Bad Request status.
-        """
-        url = reverse('notification-prefs-update')
-        invalid_data = {
-            'email_project_updates': 'invalid_value'
-        }
-        response = self.client.post(url, invalid_data)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+

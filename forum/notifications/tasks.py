@@ -3,8 +3,9 @@ from .utils import trigger_notification
 from investors.models import Investor
 from startups.models import Startup
 from projects.models import Project
-from django.core.mail import send_mail
 from django.conf import settings
+import aiosmtplib
+from email.message import EmailMessage
 
 @shared_task
 def trigger_notification_task(investor_id, startup_id, project_id, trigger_type):
@@ -25,29 +26,32 @@ def trigger_notification_task(investor_id, startup_id, project_id, trigger_type)
         startup = Startup.objects.get(startup_id=startup_id)
         project = Project.objects.get(project_id=project_id)
 
-        # Call the utility function to handle the notification logic
         trigger_notification(investor, startup, project, trigger_type)
 
     except Investor.DoesNotExist:
         print(f'Investor with ID {investor_id} does not exist')
+        return 'Investor not found'
     except Startup.DoesNotExist:
         print(f'Startup with ID {startup_id} does not exist')
+        return 'Startup not found'
     except Project.DoesNotExist:
         print(f'Project with ID {project_id} does not exist')
+        return 'Project not found'
+    except Exception as e:
+        print(f'Unexpected error: {str(e)}')
+        return 'Unexpected error occurred'
+
 
 
 @shared_task
-def send_email_notification(user_email, subject, message):
+async def send_email_notification(user_email, subject, message):
     """
-    Celery task to send an email notification asynchronously to a user.
+    Asynchronous Celery task to send an email notification to a user using aiosmtplib.
 
     Args:
         user_email (str): The recipient's email address.
         subject (str): The subject of the email notification.
         message (str): The body content of the email message.
-
-    This task constructs a complete email body including a greeting and a notification message,
-    and sends the email using the Django email backend.
     """
     email_body = f"""
     Hello,
@@ -61,11 +65,23 @@ def send_email_notification(user_email, subject, message):
     Best regards,
     The Platform Team
     """
-    
-    send_mail(
-        subject,                      # Email subject
-        email_body,                   # Full message body including greeting and details
-        settings.EMAIL_HOST_USER,     # Sender's email, defined in Django settings
-        [user_email],                 # Recipient's email
-        fail_silently=False,          # Raise an error if sending fails
-    )
+
+    email_message = EmailMessage()
+    email_message["From"] = settings.EMAIL_HOST_USER
+    email_message["To"] = user_email
+    email_message["Subject"] = subject
+    email_message.set_content(email_body)
+
+    try:
+        await aiosmtplib.send(
+            email_message,
+            hostname=settings.EMAIL_HOST,
+            port=settings.EMAIL_PORT,
+            username=settings.EMAIL_HOST_USER,
+            password=settings.EMAIL_HOST_PASSWORD,
+            use_tls=settings.EMAIL_USE_TLS,
+        )
+    except aiosmtplib.SMTPException as e:
+        print(f"Error occurred while sending email: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")

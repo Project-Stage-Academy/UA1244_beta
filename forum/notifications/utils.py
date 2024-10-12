@@ -4,8 +4,6 @@ from .models import Notification
 from django.core.exceptions import ValidationError
 
 
-
-
 def trigger_notification(investor, startup, project, trigger_type, initiator='investor'):
     """
     Function to create a notification and send a real-time notification via WebSocket.
@@ -23,14 +21,18 @@ def trigger_notification(investor, startup, project, trigger_type, initiator='in
     )
 
     if startup and startup.user:
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'notifications_{startup.user.id}',
-            {
-                'type': 'send_notification',
-                'message': f"New notification: {trigger_type}",
-            }
-        )
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'notifications_{startup.user.id}',
+                {
+                    'type': 'send_notification',
+                    'message': f"New notification: {trigger_type}",
+                }
+            )
+        except Exception as e:
+            print(f"Error sending WebSocket notification: {str(e)}")
+
 
 def notify_user(user, event_type, message):
     """
@@ -44,19 +46,17 @@ def notify_user(user, event_type, message):
     Returns:
         str: Message indicating the status of the notification sending.
     """
-    send_email = False
-
     if hasattr(user, 'investor'):
-        prefs = user.investor.notification_preferences
+        prefs = getattr(user.investor, 'notification_preferences', None)
         event_map = {
-            'new_follow': prefs.email_project_updates,
-            'project_update': prefs.email_project_updates
+            'new_follow': prefs.email_project_updates if prefs else False,
+            'project_update': prefs.email_project_updates if prefs else False
         }
     elif hasattr(user, 'startup'):
-        prefs = user.startup.notification_preferences
+        prefs = getattr(user.startup, 'notification_preferences', None)
         event_map = {
-            'project_update': prefs.email_project_updates,
-            'startup_update': prefs.email_startup_updates
+            'project_update': prefs.email_project_updates if prefs else False,
+            'startup_update': prefs.email_startup_updates if prefs else False
         }
     else:
         return "User does not have the required role of investor or startup."
@@ -64,8 +64,11 @@ def notify_user(user, event_type, message):
     send_email = event_map.get(event_type, False)
 
     if send_email:
-        from .tasks import send_email_notification
-        send_email_notification.delay(user.email, f'New {event_type} notification', message)
-        return f"Notification sent to {user.email}."
+        try:
+            from .tasks import send_email_notification
+            send_email_notification.delay(user.email, f'New {event_type} notification', message)
+            return f"Notification sent to {user.email}."
+        except Exception as e:
+            return f"Failed to send email: {str(e)}"
     
     return "Notification preferences do not allow sending an email."
