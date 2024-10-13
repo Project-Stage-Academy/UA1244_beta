@@ -17,6 +17,12 @@ class NotificationTests(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
+        # Ensure the 'unassigned' role exists for users without a specific role.
+        unassigned_role, created = Role.objects.get_or_create(name='unassigned')
+        investor_role, created = Role.objects.get_or_create(name='investor')
+        startup_role, created = Role.objects.get_or_create(name='startup')
+
+        # Create a test user
         cls.user = User.objects.create_user(
             username='new_user666',
             email='frent3219@gmail.com',
@@ -26,21 +32,21 @@ class NotificationTests(APITestCase):
 
         assert cls.user is not None, "User not created"
 
-        investor_role = Role.objects.create(name='investor')
-        startup_role = Role.objects.create(name='startup')
-
+        # Assign investor and startup roles to the user
         cls.user.roles.add(investor_role)
         cls.user.roles.add(startup_role)
 
         assert cls.user.roles.filter(name='investor').exists(), "Investor role not added"
         assert cls.user.roles.filter(name='startup').exists(), "Startup role not added"
 
+        # Create a startup and investor instance
         cls.startup = Startup.objects.create(user=cls.user, company_name='Startup A')
         cls.investor = Investor.objects.create(user=cls.user)
 
         assert cls.startup is not None, "Startup not created"
         assert cls.investor is not None, "Investor not created"
 
+        # Create a project
         cls.project = Project.objects.create(
             startup=cls.startup, 
             title='Project A', 
@@ -50,10 +56,12 @@ class NotificationTests(APITestCase):
 
         assert cls.project is not None, "Project not created"
 
+        # Create notification preferences for the startup
         cls.startup_prefs = StartupNotificationPreferences.objects.create(startup=cls.startup)
 
         assert cls.startup_prefs is not None, "Notification preferences not created"
 
+        # Create a notification
         cls.notification = Notification.objects.create(
             investor=cls.investor,
             startup=cls.startup,
