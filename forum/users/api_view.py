@@ -3,9 +3,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
-from .models import User
+from .models import User, Role
 from .serializers import UserSerializer
-from .permissions import IsAdmin, IsOwner
+from .permissions import IsAdmin, IsOwner, IsInvestor, IsStartup
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
@@ -14,6 +14,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import CustomToken
 from datetime import timedelta
+from rest_framework.exceptions import NotFound
 
 
 User = get_user_model()
@@ -231,30 +232,37 @@ class SignOutView(APIView):
         except Exception as e:
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class ChangeActiveRoleView(APIView):
+class ChangeActiveRoleAPIView(APIView):
     """
-    API для зміни активної ролі користувача.
+    API View to allow users to change their active role.
     """
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        """
-        Обробка POST-запиту для зміни активної ролі.
-        Очікується, що в тілі запиту буде передано нову роль (role_name).
-
-        Args:
-            request: Запит з новою активною роллю.
-
-        Returns:
-            Response: Відповідь з результатом операції зміни ролі.
-        """
-        role_name = request.data.get('role_name')
+    def post(self, request, *args, **kwargs):
+        role_name = request.data.get('role')
         
         if not role_name:
-            return Response({"error": "Role name is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Role name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        role = Role.objects.filter(name=role_name).first()
+        
+        if not role:
+            raise NotFound(detail=f"Role {role_name} does not exist.")
+        
+        request.user.change_active_role(role_name)
+        
+        return Response({"detail": f"Active role changed to {role_name}"}, status=status.HTTP_200_OK)
+    
 
-        try:
-            request.user.change_active_role(role_name)
-            return Response({"message": f"Active role changed to {role_name}."}, status=status.HTTP_200_OK)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+class InvestorOnlyView(APIView):
+    permission_classes = [IsInvestor]
+
+    def get(self, request):
+        return Response({"message": "Welcome, Investor!"})
+
+
+class StartupOnlyView(APIView):
+    permission_classes = [IsStartup]
+
+    def get(self, request):
+        return Response({"message": "Welcome, Startup!"})

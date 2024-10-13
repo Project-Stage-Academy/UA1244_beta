@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 import uuid
 from phonenumber_field.modelfields import PhoneNumberField
 
-# Вибір ролей
 ROLE_CHOICES = [
     ('startup', 'Startup'),
     ('investor', 'Investor'),
@@ -15,13 +14,14 @@ class CustomUserManager(BaseUserManager):
     Custom manager for User model that provides methods for creating users and superusers.
     """
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, password=None, active_role=None, **extra_fields):
         """
         Creates and returns a regular user with the given email and password.
         
         Args:
             email (str): The user's email address.
             password (str, optional): The user's password.
+            active_role (Role, optional): The active role of the user.
             **extra_fields: Additional fields for the user.
 
         Returns:
@@ -32,11 +32,17 @@ class CustomUserManager(BaseUserManager):
         """
         if not email:
             raise ValueError('The Email field must be set')
+
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+
+        if not active_role:
+            active_role = Role.objects.get(name='unassigned')
+
+        user = self.model(email=email, active_role=active_role, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
+
 
     def create_superuser(self, email, password=None, **extra_fields):
         """
@@ -101,7 +107,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, max_length=255)
     password = models.CharField(max_length=255)
     phone = PhoneNumberField()
-    active_role = models.ForeignKey(Role, on_delete=models.SET_DEFAULT, related_name='active_users', default=lambda: Role.objects.get(name='unassigned'))
+    active_role = models.ForeignKey(Role, on_delete=models.SET_NULL, related_name='active_users', null=True)
     roles = models.ManyToManyField(Role, related_name="users")
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)

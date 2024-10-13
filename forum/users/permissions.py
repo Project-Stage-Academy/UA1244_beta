@@ -44,3 +44,25 @@ class IsOwner(BasePermission):
             bool: True if the user is the owner of the object, False otherwise.
         """
         return obj == request.user
+    
+
+
+from rest_framework.permissions import BasePermission
+
+class IsInvestor(BasePermission):
+    """
+    Дозвіл тільки для користувачів з активною роллю 'investor'.
+    """
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            return request.user.active_role and request.user.active_role.name == 'investor'
+        return False
+
+class IsStartup(BasePermission):
+    """
+    Дозвіл тільки для користувачів з активною роллю 'startup'.
+    """
+    def has_permission(self, request, view):
+        if request.user.is_authenticated:
+            return request.user.active_role and request.user.active_role.name == 'startup'
+        return False
