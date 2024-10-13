@@ -230,3 +230,31 @@ class SignOutView(APIView):
 
         except Exception as e:
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ChangeActiveRoleView(APIView):
+    """
+    API для зміни активної ролі користувача.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Обробка POST-запиту для зміни активної ролі.
+        Очікується, що в тілі запиту буде передано нову роль (role_name).
+
+        Args:
+            request: Запит з новою активною роллю.
+
+        Returns:
+            Response: Відповідь з результатом операції зміни ролі.
+        """
+        role_name = request.data.get('role_name')
+        
+        if not role_name:
+            return Response({"error": "Role name is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            request.user.change_active_role(role_name)
+            return Response({"message": f"Active role changed to {role_name}."}, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
