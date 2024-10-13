@@ -1,6 +1,6 @@
-from django.shortcuts import render, HttpResponse
+from django.shortcuts import render
 
 # Create your views here.
 
-def users(request):
-    return HttpResponse("Not implemented")
+def index(request):
+    return render(request, 'index.html')

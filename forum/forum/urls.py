@@ -22,6 +22,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 from users.api_view import ActivateAccountView, SignOutView
+from users.views import index
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 
@@ -39,6 +40,7 @@ urlpatterns = [
     # path("investors/", include("investors.urls")),
     # path("startups/", include("startups.urls")),
     path("api/v1/", include("notifications.urls")),
+    path('', index, name='index'),
 
 
     # JWT Token URLs

@@ -8,9 +8,10 @@ router.register(r'users', UserViewSet)
 router.register(r'register', RegisterViewSet, basename='register')
 
 urlpatterns = [
-    path("users/list", views.users, name="users"),
     path('', include(router.urls)),
     path('change-role/', ChangeActiveRoleAPIView.as_view(), name='change-role'),
     path('investor-only/', InvestorOnlyView.as_view(), name='investor-only'),
     path('startup-only/', StartupOnlyView.as_view(), name='startup-only'),
+    
 ]
+
