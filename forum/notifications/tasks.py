@@ -6,6 +6,49 @@ from projects.models import Project
 from django.conf import settings
 import aiosmtplib
 from email.message import EmailMessage
+from .models import Notification
+
+@shared_task
+def create_notification_task(entity_type, entity_id, trigger, message, initiator='system'):
+    """
+    Asynchronous task for creating notifications.
+    
+    Args:
+        entity_type (str): Type of the entity ('project', 'investor', 'startup').
+        entity_id (int): ID of the entity triggering the notification.
+        trigger (str): Type of the trigger (e.g., 'project_update', 'investor_follow').
+        message (str): Notification message to be sent.
+        initiator (str): Who initiated the notification (default is 'system').
+    """
+    try:
+        if entity_type == 'project':
+            entity = Project.objects.get(id=entity_id)
+            Notification.objects.create(
+                project=entity,
+                trigger=trigger,
+                initiator=initiator,
+                message=message
+            )
+        elif entity_type == 'investor':
+            entity = Investor.objects.get(id=entity_id)
+            Notification.objects.create(
+                investor=entity,
+                trigger=trigger,
+                initiator=initiator,
+                message=message
+            )
+        elif entity_type == 'startup':
+            entity = Startup.objects.get(id=entity_id)
+            Notification.objects.create(
+                startup=entity,
+                trigger=trigger,
+                initiator=initiator,
+                message=message
+            )
+    except (Project.DoesNotExist, Investor.DoesNotExist, Startup.DoesNotExist):
+        print(f"{entity_type.capitalize()} with ID {entity_id} does not exist")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
 
 @shared_task
 def trigger_notification_task(investor_id, startup_id, project_id, trigger_type):

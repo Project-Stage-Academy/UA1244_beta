@@ -6,8 +6,9 @@ from rest_framework.views import APIView
 from .models import Notification, StartupNotificationPreferences, InvestorNotificationPreferences, Startup, Investor
 from .serializers import NotificationSerializer, StartupNotificationPrefsSerializer, InvestorNotificationPrefsSerializer, TriggerNotificationSerializer
 from .tasks import trigger_notification_task
-from .permissions import IsInvestor, IsStartup
+from .permissions import IsInvestorOrStartup
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 
 def create_error_response(message, status_code):
@@ -63,7 +64,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         Only authenticated users with 'investor' or 'startup' roles can access this view.
     """
     serializer_class = NotificationSerializer
-    permission_classes = [IsAuthenticated, IsInvestor | IsStartup]
+    permission_classes = [IsAuthenticated, IsInvestorOrStartup]
 
     def get_queryset(self):
         """
@@ -73,11 +74,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
             QuerySet: Notifications related to the investor or startup roles of the user.
         """
         user = self.request.user
-        
-        investor_notifications = Notification.objects.filter(investor__in=user.investors.all()) if user.investors.exists() else Notification.objects.none()
-        startup_notifications = Notification.objects.filter(startup__in=user.startups.all()) if user.startups.exists() else Notification.objects.none()
-        
-        return investor_notifications | startup_notifications
+        return Notification.objects.filter(
+            Q(investor__in=user.investors.all()) | Q(startup__in=user.startups.all())
+        )
 
     def perform_update(self, serializer):
         """
@@ -131,7 +130,7 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
     Permissions:
         Only authenticated users with 'investor' or 'startup' roles can access this view.
     """
-    permission_classes = [IsAuthenticated, IsInvestor | IsStartup, IsInvestor & IsStartup]
+    permission_classes = [IsAuthenticated, IsInvestorOrStartup]
 
     def get_preferences_and_serializer(self, user):
         """
@@ -218,7 +217,7 @@ class MarkAsReadView(APIView):
     Permissions:
         Only authenticated users with 'investor' or 'startup' roles can access this view.
     """
-    permission_classes = [IsAuthenticated, IsInvestor | IsStartup, IsInvestor & IsStartup]
+    permission_classes = [IsAuthenticated, IsInvestorOrStartup]
 
     def post(self, request, notification_id):
         """
@@ -233,7 +232,6 @@ class MarkAsReadView(APIView):
         """
         try:
             notification = Notification.objects.get(id=notification_id)
-            self.check_object_permissions(request, notification)
             notification.is_read = True
             notification.save()
             return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
@@ -249,7 +247,7 @@ class DeleteNotificationView(APIView):
     Permissions:
         Only authenticated users with 'investor' or 'startup' roles can access this view.
     """
-    permission_classes = [IsAuthenticated, IsInvestor | IsStartup, IsInvestor & IsStartup]
+    permission_classes = [IsAuthenticated, IsInvestorOrStartup]
 
     def delete(self, request, notification_id):
         """
@@ -264,7 +262,6 @@ class DeleteNotificationView(APIView):
         """
         try:
             notification = Notification.objects.get(id=notification_id)
-            self.check_object_permissions(request, notification)
             notification.delete()
             return Response({'message': 'Notification deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
         

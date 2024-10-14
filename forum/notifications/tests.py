@@ -3,7 +3,6 @@ from django.urls import reverse
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from .models import Notification, StartupNotificationPreferences, Investor, Startup, Project
-from .serializers import NotificationSerializer, StartupNotificationPrefsSerializer
 from users.models import Role
 from django.core.exceptions import ValidationError
 
@@ -140,14 +139,17 @@ class NotificationTests(APITestCase):
     def test_create_notification_without_project_or_startup(self):
         """
         Test creating a notification without a project, startup, or investor.
-        This should raise a ValidationError.
+        This should raise a ValidationError with a specific error message.
         """
         invalid_notification_data = {
             'trigger': 'project_follow',
             'initiator': 'investor'
         }
-        with self.assertRaises(ValidationError):
+        
+        with self.assertRaises(ValidationError) as context:
             Notification.objects.create(**invalid_notification_data)
+
+        self.assertIn('At least one of project, startup, or investor must be set.', str(context.exception))
 
     def test_get_notifications_list_without_permission(self):
         """
@@ -160,6 +162,36 @@ class NotificationTests(APITestCase):
         url = reverse('notification-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    
+    def test_delete_non_existent_notification(self):
+        """
+        Test deleting a non-existent notification.
+        Verifies that a 404 Not Found status is returned.
+        """
+        non_existent_notification_id = 9999  
+        url = reverse('delete-notification', kwargs={'notification_id': non_existent_notification_id})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['error'], 'Notification not found')
+
+    
+    def test_access_notification_with_invalid_role(self):
+        """
+        Test accessing the notifications endpoint with a user that has an invalid or non-existent role.
+        Verifies that access is denied with a 403 Forbidden status.
+        """
+        
+        user_with_invalid_role = User.objects.create_user(username='invalidroleuser', email='invalidroleuser@test.com', password='InvalidPass123!')
+        self.client.force_authenticate(user=user_with_invalid_role)
+
+        url = reverse('notification-list')
+        response = self.client.get(url)
+
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'You do not have permission to perform this action.')
+
 
 
 

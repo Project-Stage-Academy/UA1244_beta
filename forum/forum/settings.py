@@ -51,9 +51,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'djoser',
     'startups',
-    'notifications',
     'channels',
     'django_extensions',
+    'notifications.apps.NotificationsConfig',
     
 
 
