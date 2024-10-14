@@ -2,11 +2,21 @@ from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from .models import User
 from .serializers import UserSerializer
 from .permissions import IsAdmin, IsOwner
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework.views import APIView
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import CustomToken
+from datetime import timedelta
+
+
+User = get_user_model()
 
 
 class UserViewSet(mixins.RetrieveModelMixin,
@@ -84,7 +94,6 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Generate JWT tokens for the newly registered user
         refresh = RefreshToken.for_user(user)
         response_data = {
             "user": serializer.data,
@@ -93,3 +102,131 @@ class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
         }
 
         return Response(response_data, status=status.HTTP_201_CREATED)
+    
+
+
+
+def create_error_response(message, status_code):
+    """
+    Helper function to centralize error responses.
+
+    Args:
+        message (str): Error message to be included in the response.
+        status_code (int): HTTP status code for the error.
+
+    Returns:
+        Response: A Response object with the error message and status code.
+    """
+    return Response({'error': message}, status=status_code)
+
+
+
+class ActivateAccountView(APIView):
+    """
+    API View for activating a user's account via a token.
+
+    This view takes a token from the URL, verifies it, and activates the user's account by setting is_active to True.
+
+    Permission Classes:
+        - Allows any user to access this view (AllowAny).
+
+    Methods:
+        get(request, token):
+            Activates the user's account if the token is valid and the account is not already active.
+    """
+    
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]  
+
+    def get(self, request, token, *args, **kwargs):
+        """
+        Handle GET requests to activate a user's account.
+
+        Args:
+            request (Request): The HTTP request object.
+            token (str): The activation token passed in the URL.
+
+        Returns:
+            Response: A Response object indicating success or failure of activation.
+        """
+        try:
+            activation_token = CustomToken(token)
+            user_id = activation_token.get('user_id')
+
+            user = User.objects.get(user_id=user_id)
+
+            if user.is_active:
+                return create_error_response('Account is already activated', status.HTTP_400_BAD_REQUEST)
+
+            user.is_active = True
+            user.save()
+
+            return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
+
+        except ObjectDoesNotExist:
+            return create_error_response('User does not exist', status.HTTP_404_NOT_FOUND)
+
+        except AuthenticationFailed:
+            return create_error_response('Invalid or expired token. Please request a new activation link.', status.HTTP_400_BAD_REQUEST)
+
+        except TokenError as e:
+            return create_error_response(f'Token error: {str(e)}', status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+
+            return create_error_response(f'Something went wrong: {str(e)}', status.HTTP_500_INTERNAL_SERVER_ERROR)     
+        
+
+class SignOutView(APIView):
+    """
+    API View for logging out users by invalidating their access and refresh tokens.
+
+    This view handles the logout process by setting the access and refresh tokens' expiration to zero 
+    and deleting the access and refresh tokens from the client's cookies.
+
+    Permission Classes:
+        - Only authenticated users can log out (IsAuthenticated).
+
+    Methods:
+        post(request):
+            Invalidates the provided refresh token and the current access token.
+            Deletes the access and refresh tokens from cookies.
+            Returns a response indicating success or failure.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Handle POST requests to log out a user.
+
+        Args:
+            request (Request): The HTTP request object containing the refresh token.
+
+        Returns:
+            Response: A Response object indicating the result of the logout operation.
+
+        Raises:
+            TokenError: If the provided refresh token is invalid.
+            Exception: For any unexpected errors during the logout process.
+        """
+        try:
+            access_token = AccessToken(request.auth.token) if request.auth else None
+            access_token.set_exp(lifetime=timedelta(seconds=0)) 
+
+            refresh_token = request.data.get('refresh')
+            if refresh_token:
+                refresh_token_instance = RefreshToken(refresh_token)
+                refresh_token_instance.set_exp(lifetime=timedelta(seconds=0))  
+
+            response = Response({"message": "User successfully logged out."}, status=status.HTTP_200_OK)
+            response.delete_cookie('access_token')
+            response.delete_cookie('refresh_token')
+
+            return response
+
+        except TokenError:
+            return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

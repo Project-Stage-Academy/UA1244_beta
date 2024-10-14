@@ -29,5 +29,14 @@ services:
       - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
 
+  # Email Server and Web Interface for viewing and testing emails during development
+  maildev:
+    image: maildev/maildev
+    container_name: maildev
+    ports:
+      - "${MAILDEV_SMTP_PORT}:1025" # SMTP protocol port
+      - "${MAILDEV_UI_PORT}:1080"   # UI port
+
+
 volumes:
   postgres_data:

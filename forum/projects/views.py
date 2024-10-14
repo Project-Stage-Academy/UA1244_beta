@@ -1,8 +1,11 @@
-from django.shortcuts import render, get_object_or_404
+import logging
+
+from django.shortcuts import render, get_object_or_404, HttpResponse
 
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
 
 from .models import Project
 from .serializers import ProjectSerializer
@@ -91,3 +94,14 @@ def project_history_view(request, project_id):
     history = project.history.all()
 
     return render(request, 'projects/project_history.html', {'project': project, 'history': history})
+
+
+logger = logging.getLogger(__name__)
+
+
+def projects(request):
+    try:
+        logger.info("Processing the request.")
+        return HttpResponse("Not implemented")
+    except Exception as e:
+        logger.error(f"Error occurred: {e}")

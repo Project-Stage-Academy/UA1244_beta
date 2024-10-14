@@ -1,4 +1,9 @@
 from rest_framework.permissions import BasePermission
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class IsAdmin(BasePermission):
     """
     Custom permission to check if the user is an admin.
@@ -19,7 +24,13 @@ class IsAdmin(BasePermission):
         Returns:
             bool: True if the user is authenticated and has the role 'admin', False otherwise.
         """
-        return request.user and request.user.is_authenticated and request.user.roles.filter(role_name='admin').exists()
+        is_admin = request.user and request.user.is_authenticated and request.user.roles.filter(name='admin').exists()
+
+        if not is_admin:
+            logger.warning(f"Permission denied for user {request.user}")
+        else:
+            logger.info(f"User '{request.user.username}' granted access to '{view.name}' as admin.")
+        return is_admin
 
 
 class IsOwner(BasePermission):
@@ -43,4 +54,10 @@ class IsOwner(BasePermission):
         Returns:
             bool: True if the user is the owner of the object, False otherwise.
         """
-        return obj == request.user
+        if obj == request.user:
+            logger.info(f"User '{request.user.username}' has permission to access object '{obj}' as the owner.")
+            return True
+        else:
+            logger.warning(
+                f"User '{request.user.username}' denied access to object '{obj}' due to insufficient permissions.")
+            return False

@@ -8,7 +8,6 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -18,8 +17,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG')
 
-ALLOWED_HOSTS = ['0.0.0.0']
-
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 
 # Application definition
 
@@ -43,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'djoser',
     'channels'
+    "startups",
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -163,11 +162,10 @@ REST_FRAMEWORK = {
 }
 
 
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
     "UPDATE_LAST_LOGIN": False,
 
@@ -224,3 +222,95 @@ DJOSER = {
 
 PHONENUMBER_DEFAULT_REGION = None  
 PHONENUMBER_DB_FORMAT = 'INTERNATIONAL'
+
+
+# Email settings
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS') == 'True'
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+
+# Logging configuration
+LOG_FILE_PATH = os.path.join('logs', 'forum.log')
+
+# Ensure the logs directory exists
+log_dir = os.path.dirname(LOG_FILE_PATH)
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{name} {levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': os.environ.get("LOG_LEVEL"),
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'level': os.environ.get("LOG_LEVEL"),
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': LOG_FILE_PATH,
+            'when': 'midnight',
+            'backupCount': 7,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+        },
+        'django.db.backends': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'forum': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'startups': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'investors': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'users': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+    },
+}
+

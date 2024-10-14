@@ -69,7 +69,7 @@ class Role(models.Model):
 
 
     role_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    name = models.CharField(max_length=50, choices=ROLE_CHOICES, null=False)
 
     class Meta:
         verbose_name = "Role"
@@ -106,7 +106,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     password = models.CharField(max_length=255)
     phone = PhoneNumberField()
     roles = models.ManyToManyField(Role, related_name="users")
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
