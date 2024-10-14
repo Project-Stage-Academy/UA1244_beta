@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from datetime import date
 
 from .models import Project
 from startups.models import Startup
@@ -21,6 +22,19 @@ class ProjectSerializer(serializers.ModelSerializer):
                 'actual_finish_date', 'created_at', 'last_update', 'media'
         ]
 
+    def validate(self, data):
+        """
+        Ensure that planned_finish_date is after planned_start_date.
+        """
+        planned_start_date = data.get('planned_start_date')
+        planned_finish_date = data.get('planned_finish_date')
+
+        if planned_start_date and planned_finish_date:
+            if planned_finish_date < planned_start_date:
+                raise serializers.ValidationError("Planned finish date cannot be earlier than the planned start date.")
+        
+        return data
+
     def validate_title(self, value):
         """
         Validate the uniqueness of the project title.
@@ -37,7 +51,9 @@ class ProjectSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If the project title already exists.
         """
+        startup = self.initial_data.get('startup')
 
-        if Project.objects.filter(title=value).exists():
-            raise serializers.ValidationError("Project with this title already exists.")
+        if Project.objects.filter(title=value, startup=startup).exists():
+            raise serializers.ValidationError("A project with this title already exists for this startup.")
+        
         return value

@@ -1,6 +1,8 @@
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.exceptions import StopConsumer
+from channels.exceptions import DenyConnection
 
 
 class ProjectConsumer(AsyncWebsocketConsumer):
@@ -14,12 +16,20 @@ class ProjectConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         """
         Handle the WebSocket connection.
-
         This method retrieves the project ID from the URL, adds the
-        channel to the project group, and accepts the connection.
+        channel to the project group, and accepts the connection only if the user is authenticated.
         """
 
-        self.project_id = self.scope['url_route']['kwargs']['project_id']
+        if not self.scope['user'].is_authenticated:
+            await self.close(code=4001)
+            return
+
+        project_id = self.scope['url_route']['kwargs']['project_id']
+        if not self.user_has_access_to_project(self.scope['user'], project_id):
+            await self.close(code=4003)
+            return
+
+        self.project_id = project_id
         self.project_group_name = f'project_{self.project_id}'
 
         await self.channel_layer.group_add(
@@ -45,18 +55,21 @@ class ProjectConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        """
-        Handle incoming messages from the WebSocket.
+        try:
+            text_data_json = json.loads(text_data)
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'error': 'Invalid JSON data.'
+            }))
+            return
 
-        This method receives text data, parses it, and sends the
-        message to the project group for broadcasting.
+        message = text_data_json.get('message')
 
-        Args:
-            text_data (str): The JSON-encoded message received from the client.
-        """
-
-        text_data_json = json.loads(text_data)
-        message = text_data_json['message']
+        if not message:
+            await self.send(text_data=json.dumps({
+                'error': 'No message key in the received data.'
+            }))
+            return
 
         await self.channel_layer.group_send(
             self.project_group_name,
