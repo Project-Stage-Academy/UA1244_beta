@@ -104,6 +104,13 @@ class ActivateAccountView(APIView):
                 return create_error_response('Account is already activated', status.HTTP_400_BAD_REQUEST)
 
             user.is_active = True
+
+            roles = user.roles.all()
+            if roles.count() == 1:
+                user.active_role = roles[0]
+            else:
+                user.active_role = Role.objects.get(name='unassigned')
+
             user.save()
 
             return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
