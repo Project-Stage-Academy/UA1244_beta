@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import UniqueConstraint
 from django.contrib.auth import get_user_model
 from startups.models import Startup
 from startups.models import Location
@@ -7,8 +8,6 @@ from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
 from users.models import User
-
-User = get_user_model()
 
 
 def validate_image_size(value):
@@ -59,7 +58,7 @@ class Investor(models.Model):
         return self.company_name
 
 
-class InvestorStartup(models.Model):
+class InvestorFollow(models.Model):
     """
     Represents a many-to-many relationship between investors and startups, 
     indicating which investors are following which startups.
@@ -77,13 +76,14 @@ class InvestorStartup(models.Model):
         started following the startup. This field is automatically set to 
         the current date and time when the relationship is created.
     """
-
-    investor_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='investor_startups')
-    startup_id = models.ForeignKey(Startup, on_delete=models.CASCADE, related_name='startup_investors')
+    investor = models.ForeignKey(Investor, on_delete=models.CASCADE)
+    startup = models.ForeignKey(Startup, on_delete=models.CASCADE, related_name='startup_investors')
     saved_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('investor_id', 'startup_id')
+        constraints = [
+            UniqueConstraint(fields=['investor', 'startup'], name='unique_investor_startup')
+        ]
 
     def __str__(self):
         return f"{self.investor.username} follows {self.startup.company_name}"
