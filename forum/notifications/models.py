@@ -6,10 +6,23 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
 
+
+from django.utils import timezone
+from django.db import models
+from datetime import timedelta
+from django.core.exceptions import ValidationError
+
+def get_expiration_date():
+    """
+    Function to get the expiration date for the notification.
+    Returns the current date and time plus 30 days.
+    """
+    return timezone.now() + timedelta(days=30)
+
 class Notification(models.Model):
     """
-    Model to store notifications for different types of actions within the platform.
-    A notification can be related to a project, startup, or investor, and is triggered by certain events.
+    A model to store notifications for different actions within the platform.
+    A notification can be related to a project, startup, or investor, and is triggered by specific events.
     """
     
     TRIGGER_CHOICES = [
@@ -34,21 +47,21 @@ class Notification(models.Model):
         ('high', 'High'),
     ]
 
-    project = models.ForeignKey(Project, on_delete=models.SET_NULL, related_name='notifications', null=True)
-    startup = models.ForeignKey(Startup, on_delete=models.SET_NULL, related_name='notifications', null=True)
-    investor = models.ForeignKey(Investor, on_delete=models.SET_NULL, related_name='notifications', null=True)
+    project = models.ForeignKey('projects.Project', on_delete=models.SET_NULL, related_name='notifications', null=True)
+    startup = models.ForeignKey('startups.Startup', on_delete=models.SET_NULL, related_name='notifications', null=True)
+    investor = models.ForeignKey('investors.Investor', on_delete=models.SET_NULL, related_name='notifications', null=True)
     trigger = models.CharField(max_length=55, choices=TRIGGER_CHOICES)
     initiator = models.CharField(max_length=10, choices=INITIATOR_CHOICES)
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='low') 
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='low')
     date_time = models.DateTimeField(auto_now_add=True)
-    expiration = models.DateTimeField(default=lambda: timezone.now() + timedelta(days=30))  
+    expiration = models.DateTimeField(default=get_expiration_date)  
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(blank=True, null=True)  
     redirection_url = models.URLField(blank=True, null=True)
 
     def clean(self):
         """
-        Custom validation to ensure at least one related entity (project, startup, or investor) is provided.
+        Validates that at least one related entity (project, startup, or investor) is set.
         Raises a ValidationError if none of the related entities are set.
         """
         if not self.project and not self.startup and not self.investor:
@@ -56,13 +69,13 @@ class Notification(models.Model):
 
     def set_redirection_url(self):
         """
-        Set the redirection URL based on the trigger and associated objects.
-        If no associated object is available, assign a default testing URL.
+        Sets the redirection URL based on the trigger and associated objects.
+        Assigns a default testing URL if no associated object is found.
         """
         redirection_mapping = {
             'project_follow': f'/projects/{self.project.id}/' if self.project else None,
             'startup_profile_update': f'/startups/{self.startup.id}/' if self.startup else None,
-            'investor_profile_change': f'/investors/{self.investor.id}/' if self.investor else None,  
+            'investor_profile_change': f'/investors/{self.investor.id}/' if self.investor else None,
         }
         self.redirection_url = redirection_mapping.get(self.trigger, 'http://example.com/fake-url-for-testing/')
         
@@ -71,7 +84,7 @@ class Notification(models.Model):
 
     def mark_as_read(self):
         """
-        Marks the notification as read and stores the exact time it was read.
+        Marks the notification as read and sets the exact time when it was read.
         """
         self.is_read = True
         self.read_at = timezone.now()
@@ -85,8 +98,8 @@ class Notification(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Automatically set the redirection URL, validate the notification instance, 
-        and save the instance to the database.
+        Automatically sets the redirection URL, validates the notification instance, 
+        and saves the instance to the database.
         """
         self.clean()  
         if not self.redirection_url:
@@ -95,7 +108,7 @@ class Notification(models.Model):
 
     def __str__(self):
         """
-        String representation of the Notification instance.
+        Returns a string representation of the Notification instance.
         """
         return f'Notification {self.trigger} for {self.initiator}'
 
