@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ChatConsumer(WebsocketConsumer):
+class CommunicationConsumer(WebsocketConsumer):
     def connect(self):
         logger.info("WebSocket connection established")
         self.accept()
