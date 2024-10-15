@@ -102,6 +102,12 @@ DATABASES = {
         "PASSWORD": os.environ.get('DATABASE_PASSWORD'),
         "HOST": os.environ.get('DATABASE_HOST'),
         "PORT": os.environ.get('DATABASE_PORT'),
+    },
+    'mongodb': {
+        'ENGINE': 'djongo',
+        'NAME': os.environ.get("MONGO_ROOT_USERNAME"),
+        'HOST': os.environ.get("MONGO_ROOT_PASSWORD"),
+        'PORT': 8081,
     }
 }
 

@@ -54,5 +54,4 @@ django-extensions==3.2.3
 channels_redis==4.2.0
 msgpack==1.1.0
 aiosmtplib==3.0.2
-
-
+pymongo==4.10.1
