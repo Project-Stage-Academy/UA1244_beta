@@ -14,6 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+import mongoengine
 
 load_dotenv()
 
@@ -104,12 +105,18 @@ DATABASES = {
         "PORT": os.environ.get('DATABASE_PORT'),
     },
     'mongodb': {
-        'ENGINE': 'djongo',
-        'NAME': os.environ.get("MONGO_ROOT_USERNAME"),
-        'HOST': os.environ.get("MONGO_ROOT_PASSWORD"),
+        'NAME': os.environ.get("MONGO_ROOT_NAME"),
+        'USERNAME': os.environ.get("MONGO_ROOT_USERNAME"),
+        'PASSWORD': os.environ.get("MONGO_ROOT_PASSWORD"),
+        "HOST": os.environ.get('MONGO_HOST'),
         'PORT': 8081,
     }
 }
+
+mongoengine.connect(db=DATABASES["mongodb"]["NAME"],
+                   host=DATABASES["mongodb"]["HOST"],
+                   username=DATABASES["mongodb"]["USERNAME"],
+                   password=DATABASES["mongodb"]["PASSWORD"])
 
 
 # Password validation
