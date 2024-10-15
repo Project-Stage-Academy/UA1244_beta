@@ -2,10 +2,8 @@ import logging
 
 from django.shortcuts import render, get_object_or_404, HttpResponse
 
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
 
 from .models import Project
 from .serializers import ProjectSerializer
@@ -30,31 +28,6 @@ class ProjectListCreateView(generics.ListCreateAPIView):
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
-        """
-        Handle POST requests to create a new project.
-
-        Validates the incoming request data and saves a new Project
-        instance if the data is valid. Returns the serialized data
-        of the created project or error messages if validation fails.
-
-        Args:
-            request (Request): The HTTP request object containing
-                the data to create a new project.
-            *args: Variable length argument list.
-            **kwargs: Arbitrary keyword arguments.
-
-        Returns:
-            Response: A response containing the serialized project
-            data with a 201 status code if successful, or error
-            messages with a 400 status code if validation fails.
-        """
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ProjectHistoryView(generics.ListAPIView):
     """
@@ -72,6 +45,7 @@ class ProjectHistoryView(generics.ListAPIView):
 
     queryset = Project.history.all()
     serializer_class = ProjectSerializer
+    permission_classes = [IsAuthenticated]
 
 
 def project_history_view(request, project_id):

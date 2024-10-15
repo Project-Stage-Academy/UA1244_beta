@@ -4,6 +4,30 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 from .models import Project
+from .tasks import send_project_update
+
+
+@receiver(post_save, sender=Project)
+def project_updated(sender, instance, created, **kwargs):
+    """
+    Sends an asynchronous update notification when a Project is created or updated.
+
+    This function is triggered automatically whenever a Project instance is saved. It sends
+    an asynchronous task to notify interested parties about the updated or newly created project
+    using the `send_project_update` Celery task. The task sends information such as the project's
+    ID, title, and description.
+
+    Args:
+        sender (Model class): The model class (Project) that triggered this signal.
+        instance (Project): The specific instance of the Project model that was saved.
+        created (bool): A boolean indicating if the instance was created (True) or updated (False).
+        **kwargs: Additional keyword arguments passed by the signal.
+    """
+    send_project_update.delay(
+        str(instance.project_id),
+        instance.title,
+        instance.description
+    )
 
 
 @receiver(post_save, sender=Project)
