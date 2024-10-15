@@ -52,8 +52,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'djoser',
     'startups',
-    'notifications',
-    "chat",
+    'notifications'
 ]
 
 # ASGI application configuration
