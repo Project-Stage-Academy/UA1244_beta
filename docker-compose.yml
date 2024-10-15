@@ -1,3 +1,5 @@
+version: '3'
+
 services:
   web:
     build: .
@@ -9,6 +11,7 @@ services:
       - 8000:8000
     depends_on:
       - db
+      - redis
     environment:
       - DJANGO_SECRET_KEY=${SECRET_KEY}
       - DJANGO_DEBUG=${DEBUG}
@@ -29,14 +32,40 @@ services:
       - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
 
-  # Email Server and Web Interface for viewing and testing emails during development
+  # Redis для Celery
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+
+  # Celery
+  celery:
+    build: .
+    command: celery -A forum worker --loglevel=info
+    volumes:
+      - .:/code
+    working_dir: /code/forum
+    depends_on:
+      - redis
+      - db
+    environment:
+      - DJANGO_SECRET_KEY=${SECRET_KEY}
+      - DJANGO_DEBUG=${DEBUG}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+
   maildev:
     image: maildev/maildev
     container_name: maildev
     ports:
-      - "${MAILDEV_SMTP_PORT}:1025" # SMTP protocol port
-      - "${MAILDEV_UI_PORT}:1080"   # UI port
+      - "${MAILDEV_SMTP_PORT}:1025"
+      - "${MAILDEV_UI_PORT}:1080"
 
-
-volumes:
+volumes:  
   postgres_data:

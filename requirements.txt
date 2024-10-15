@@ -42,7 +42,15 @@ sqlparse==0.5.1
 typing_extensions==4.12.2
 tzdata==2024.2
 urllib3==2.2.3
+django-phonenumber-field[phonenumberslite]==8.0.0
+Pillow==10.4.0
 vine==5.1.0
 wcwidth==0.2.13
 redis==5.1.1
-pillow==10.4.0
+channels==4.1.0
+django-extensions==3.2.3
+channels_redis==4.2.0 
+msgpack==1.1.0
+aiosmtplib==3.0.2
+
+
