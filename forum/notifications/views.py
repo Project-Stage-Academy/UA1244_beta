@@ -4,7 +4,6 @@ from django.contrib import messages
 from django.views import View
 from .models import StartupNotificationPreferences, InvestorNotificationPreferences
 
-
 class NotificationPreferencesUpdateView(View):
     """
     View to update notification preferences for both startups and investors.
@@ -12,29 +11,37 @@ class NotificationPreferencesUpdateView(View):
     and update their notification preferences.
     """
 
-    def get_user_preferences(self, user):
+    def check_user_permission(self, user):
         """
-        Retrieve the notification preferences for the given user, depending 
-        on whether the user is a startup or an investor.
+        Check whether the user has permission to update preferences.
+        The user must either be a startup or an investor.
 
         Args:
-            user (User): The user for whom to retrieve preferences.
+            user (User): The user whose permissions are being checked.
+
+        Returns:
+            bool: True if the user has permission, False otherwise.
+        """
+        return hasattr(user, 'startup') or hasattr(user, 'investor')
+
+    def get_user_preferences(self, user):
+        """
+        Retrieve the notification preferences for the given user.
+        Either returns startup or investor preferences based on the user's role.
+
+        Args:
+            user (User): The user whose preferences are being retrieved.
 
         Returns:
             preferences (object): The user's notification preferences.
-            HttpResponseForbidden: If the user does not have permission.
         """
         if hasattr(user, 'startup'):
             startup = user.startup
             return StartupNotificationPreferences.objects.get_or_create(startup=startup)[0]
-
         elif hasattr(user, 'investor'):
             investor = user.investor
             return InvestorNotificationPreferences.objects.get_or_create(investor=investor)[0]
-
-        else:
-            messages.error(self.request, "You do not have permission to access this page. Only startups or investors can update preferences.")
-            return HttpResponseForbidden("Access denied: You are not authorized to update preferences.")
+        return None
 
     def get(self, request):
         """
@@ -47,10 +54,11 @@ class NotificationPreferencesUpdateView(View):
             Rendered notification preferences page if the user is authorized.
             HttpResponseForbidden if the user is not authorized.
         """
-        preferences = self.get_user_preferences(request.user)
-        if isinstance(preferences, HttpResponseForbidden):
-            return preferences
+        if not self.check_user_permission(request.user):
+            messages.error(request, "You do not have permission to access this page.")
+            return HttpResponseForbidden("Access denied: You are not authorized to update preferences.")
 
+        preferences = self.get_user_preferences(request.user)
         context = {
             'preferences': preferences,
         }
@@ -68,10 +76,11 @@ class NotificationPreferencesUpdateView(View):
             upon successful update. Returns HttpResponseForbidden if the user 
             is not authorized to make updates.
         """
-        preferences = self.get_user_preferences(request.user)
-        if isinstance(preferences, HttpResponseForbidden):
-            return preferences
+        if not self.check_user_permission(request.user):
+            messages.error(request, "You do not have permission to update preferences.")
+            return HttpResponseForbidden("Access denied: You are not authorized to update preferences.")
 
+        preferences = self.get_user_preferences(request.user)
         preferences.email_project_updates = 'email_project_updates' in request.POST
         preferences.push_project_updates = 'push_project_updates' in request.POST
         preferences.email_startup_updates = 'email_startup_updates' in request.POST
