@@ -2,6 +2,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+import mongoengine
 
 load_dotenv()
 
@@ -22,6 +23,8 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,7 +43,15 @@ INSTALLED_APPS = [
     'startups',
     'rest_framework',
     'djoser',
+    'django_extensions',
+    'notifications.apps.NotificationsConfig',
+    
+
+
 ]
+
+# ASGI application configuration
+ASGI_APPLICATION = "forum.asgi.application"
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -95,8 +106,20 @@ DATABASES = {
         "PASSWORD": os.environ.get('DATABASE_PASSWORD'),
         "HOST": os.environ.get('DATABASE_HOST'),
         "PORT": os.environ.get('DATABASE_PORT'),
+    },
+    'mongodb': {
+        'NAME': os.environ.get("MONGO_ROOT_NAME"),
+        'USERNAME': os.environ.get("MONGO_ROOT_USERNAME"),
+        'PASSWORD': os.environ.get("MONGO_ROOT_PASSWORD"),
+        "HOST": os.environ.get('MONGO_HOST'),
+        'PORT': 8081,
     }
 }
+
+mongoengine.connect(db=DATABASES["mongodb"]["NAME"],
+                   host=DATABASES["mongodb"]["HOST"],
+                   username=DATABASES["mongodb"]["USERNAME"],
+                   password=DATABASES["mongodb"]["PASSWORD"])
 
 
 # Password validation
@@ -133,7 +156,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -313,3 +337,17 @@ LOGGING = {
     },
 }
 
+
+
+
+# channels settings
+ASGI_APPLICATION = 'forum.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
