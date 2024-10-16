@@ -7,6 +7,7 @@ from django.contrib import messages
 from .forms import UserLoginForm
 
 
+
 User = get_user_model()
 
 def user_login(request):
@@ -96,17 +97,6 @@ def select_role(request):
 
     return render(request, 'users/select_user.html', {'form': form})
 
-import logging
 
-logger = logging.getLogger(__name__)
-
-# Create your views here.
-
-def users(request):
-    try:
-        logger.info("Processing the request.")
-        return HttpResponse("Not implemented")
-    except Exception as e:
-        logger.error(f"Error occurred: {e}")
 
 

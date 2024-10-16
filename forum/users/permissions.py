@@ -114,14 +114,9 @@ class IsStartup(BasePermission):
         Returns:
             bool: True if the user's active role is 'startup', False otherwise.
         """
-        if request.user.is_authenticated:
-            return request.user.active_role and request.user.active_role.name == 'startup'
-        return False
-        
-        if obj == request.user:
-            logger.info(f"User '{request.user.username}' has permission to access object '{obj}' as the owner.")
+        if request.user.is_authenticated and request.user.active_role and request.user.active_role.name == 'startup':
+            logger.info(f"User '{request.user.username}' granted access as a startup.")
             return True
-        else:
-            logger.warning(
-                f"User '{request.user.username}' denied access to object '{obj}' due to insufficient permissions.")
-            return False
+
+        logger.warning(f"User '{request.user.username}' denied access. Startup role required.")
+        return False
