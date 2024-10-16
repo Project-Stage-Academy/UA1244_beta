@@ -52,9 +52,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'djoser',
     'startups',
-    'channels',
     'django_extensions',
     'notifications.apps.NotificationsConfig',
+    'corsheaders',
     
 
 
@@ -74,6 +74,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'forum.urls'
@@ -339,3 +340,10 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+
+# CORS FOR REACT
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]

@@ -1,6 +1,7 @@
 version: '3'
 
 services:
+  # Django API server
   web:
     build: .
     command: >
@@ -8,7 +9,7 @@ services:
     volumes:
       - .:/code
     ports:
-      - 8000:8000
+      - "8000:8000"
     depends_on:
       - db
       - redis
@@ -23,6 +24,19 @@ services:
     env_file:
       - .env
 
+  # React application
+  react:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    command: npm start
+    depends_on:
+      - web
+
+  # PostgreSQL database
   db:
     image: postgres:14
     volumes:
@@ -32,13 +46,13 @@ services:
       - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
 
-  # Redis для Celery
+  # Redis for Celery
   redis:
     image: redis:6
     ports:
       - "6379:6379"
 
-  # Celery
+  # Celery worker
   celery:
     build: .
     command: celery -A forum worker --loglevel=info
@@ -60,6 +74,7 @@ services:
     env_file:
       - .env
 
+  # Maildev for testing emails
   maildev:
     image: maildev/maildev
     container_name: maildev
@@ -67,5 +82,5 @@ services:
       - "${MAILDEV_SMTP_PORT}:1025"
       - "${MAILDEV_UI_PORT}:1080"
 
-volumes:  
+volumes:
   postgres_data:
