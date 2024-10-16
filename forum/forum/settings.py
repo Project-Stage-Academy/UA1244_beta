@@ -22,6 +22,8 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,7 +42,18 @@ INSTALLED_APPS = [
     'startups',
     'rest_framework',
     'djoser',
+    'startups',
+    'channels',
+    'django_extensions',
+    'notifications.apps.NotificationsConfig',
+    
+
+
+
 ]
+
+# ASGI application configuration
+ASGI_APPLICATION = "forum.asgi.application"
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -133,7 +146,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -236,8 +250,6 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
 # Celery settings
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
-# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
@@ -313,3 +325,17 @@ LOGGING = {
     },
 }
 
+
+
+
+# channels settings
+ASGI_APPLICATION = 'forum.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}

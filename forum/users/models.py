@@ -1,30 +1,27 @@
 from django.db import models
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 import uuid
 from phonenumber_field.modelfields import PhoneNumberField
-from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
-from django.contrib.auth.models import PermissionsMixin
 
-
-INVESTOR = 'investor'
-STARTUP = 'startup'
-    
 ROLE_CHOICES = [
-        (INVESTOR, 'Investor'),
-        (STARTUP, 'Startup'),
-    ]
+    ('startup', 'Startup'),
+    ('investor', 'Investor'),
+    ('unassigned', 'Unassigned'), 
+]
 
 class CustomUserManager(BaseUserManager):
     """
     Custom manager for User model that provides methods for creating users and superusers.
     """
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, password=None, active_role=None, **extra_fields):
         """
         Creates and returns a regular user with the given email and password.
         
         Args:
             email (str): The user's email address.
             password (str, optional): The user's password.
+            active_role (Role, optional): The active role of the user.
             **extra_fields: Additional fields for the user.
 
         Returns:
@@ -35,11 +32,17 @@ class CustomUserManager(BaseUserManager):
         """
         if not email:
             raise ValueError('The Email field must be set')
+
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+
+        if not active_role:
+            active_role = Role.objects.get(name='unassigned')
+
+        user = self.model(email=email, active_role=active_role, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
+
 
     def create_superuser(self, email, password=None, **extra_fields):
         """
@@ -66,14 +69,15 @@ class Role(models.Model):
         role_id (UUIDField): Unique identifier for each role.
         role_name (CharField): The name of the role, either 'investor' or 'startup'.
     """
-
-
     role_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=50, choices=ROLE_CHOICES, null=False)
 
     class Meta:
         verbose_name = "Role"
         verbose_name_plural = "Roles"
+    
+    def __str__(self):
+        return self.name
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -89,6 +93,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         password (CharField): Password for the user.
         user_phone (PhoneNumberField): Phone number of the user.
         roles (ManyToManyField): Roles assigned to the user.
+        active_role (ForeignKey): Active role for the user with default as 'unassigned'.
         is_active (BooleanField): Indicates whether the user's account is active.
         is_staff (BooleanField): Indicates whether the user has staff privileges.
         created_at (DateTimeField): Date and time when the user account was created.
@@ -96,8 +101,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     Methods:
         set_password(password): Sets the user's password.
+        change_active_role(role_name): Changes the user's active role.
     """
-
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=100, null=False, unique=True)
     first_name = models.CharField(max_length=100, null=False)
@@ -105,6 +110,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=False, max_length=255)
     password = models.CharField(max_length=255)
     phone = PhoneNumberField()
+    active_role = models.ForeignKey(Role, on_delete=models.SET_NULL, related_name='active_users', null=True)
     roles = models.ManyToManyField(Role, related_name="users")
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -114,13 +120,25 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['username']
 
-    class Meta:
-        verbose_name = "User"
-        verbose_name_plural = "Users"
+    def change_active_role(self, role_name):
+        """
+        Change the active role of the user to the given role name.
 
-    
+        Args:
+            role_name (str): The name of the role to set as active.
+
+        Raises:
+            ValueError: If the role with the given name does not exist.
+        """
+        role = Role.objects.filter(name=role_name).first()
+        if role:
+            self.active_role = role
+            self.save()
+        else:
+            raise ValueError(f"Role {role_name} does not exist.")
+
     def __str__(self):
         return self.email
 
