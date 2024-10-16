@@ -53,7 +53,7 @@ def get_user_role_and_object(user):
         except Startup.DoesNotExist:
             roles_and_objects['startup'] = None
 
-    return roles_and_objects if roles_and_objects else None
+    return roles_and_objects if roles_and_objects else {}
 
 
 class NotificationViewSet(viewsets.ModelViewSet):

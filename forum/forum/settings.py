@@ -20,7 +20,6 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -35,6 +34,8 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -57,7 +58,11 @@ INSTALLED_APPS = [
     
 
 
+
 ]
+
+# ASGI application configuration
+ASGI_APPLICATION = "forum.asgi.application"
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -169,7 +174,6 @@ REST_FRAMEWORK = {
 }
 
 
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -248,6 +252,78 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+
+# Logging configuration
+LOG_FILE_PATH = os.path.join('logs', 'forum.log')
+
+# Ensure the logs directory exists
+log_dir = os.path.dirname(LOG_FILE_PATH)
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{name} {levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': os.environ.get("LOG_LEVEL"),
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'level': os.environ.get("LOG_LEVEL"),
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': LOG_FILE_PATH,
+            'when': 'midnight',
+            'backupCount': 7,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+        },
+        'django.db.backends': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'forum': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'startups': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'investors': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+        'users': {
+            'handlers': ['console', 'file'],
+            'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
+        },
+    },
+}
 
 
 
