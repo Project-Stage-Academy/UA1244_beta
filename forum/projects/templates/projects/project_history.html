@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project Change History: {{ project.title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Project Change History: {{ project.title }}</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date of change</th>
+                <th>User</th>
+                <th>Type of change</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in history %}
+                <tr>
+                    <td>{{ record.history_date }}</td>
+                    <td>{{ record.history_user }}</td>
+                    <td>{{ record.get_history_type_display }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+
