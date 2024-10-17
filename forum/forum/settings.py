@@ -2,6 +2,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+import mongoengine
 
 load_dotenv()
 
@@ -108,8 +109,20 @@ DATABASES = {
         "PASSWORD": os.environ.get('DATABASE_PASSWORD'),
         "HOST": os.environ.get('DATABASE_HOST'),
         "PORT": os.environ.get('DATABASE_PORT'),
+    },
+    'mongodb': {
+        'NAME': os.environ.get("MONGO_ROOT_NAME"),
+        'USERNAME': os.environ.get("MONGO_ROOT_USERNAME"),
+        'PASSWORD': os.environ.get("MONGO_ROOT_PASSWORD"),
+        "HOST": os.environ.get('MONGO_HOST'),
+        'PORT': 8081,
     }
 }
+
+mongoengine.connect(db=DATABASES["mongodb"]["NAME"],
+                   host=DATABASES["mongodb"]["HOST"],
+                   username=DATABASES["mongodb"]["USERNAME"],
+                   password=DATABASES["mongodb"]["PASSWORD"])
 
 
 # Password validation
