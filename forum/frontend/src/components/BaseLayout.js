@@ -1,28 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; 
+import React, { useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../styles/styles.css';
+import '../styles/styles.css'; 
 
 const BaseLayout = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
+    logout();
     navigate('/login');
   };
 
   return (
     <>
-      <nav className="navbar navbar-expand-lg navbar-light bg-light">
+       <nav className="navbar navbar-expand-lg navbar-light bg-light">
         <div className="container">
           <Link className="navbar-brand" to="/">Our Project</Link>
           <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,25 +26,29 @@ const BaseLayout = ({ children }) => {
               <li className="nav-item">
                 <Link className="nav-link" to="/">Home</Link>
               </li>
-              {/* Add more links for navigation */}
+              {isAuthenticated && (
+                <>
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/notifications">Notifications</Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/select-role">Select Role</Link>
+                  </li>
+                </>
+              )}
             </ul>
             <ul className="navbar-nav">
               {isAuthenticated ? (
-                <>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/profile">Profile</Link>
-                  </li>
-                  <li className="nav-item">
-                    <button className="btn btn-link nav-link" onClick={handleLogout}>Logout</button>
-                  </li>
-                </>
+                <li className="nav-item">
+                  <button className="btn btn-outline-primary me-2" onClick={handleLogout}>Logout</button>
+                </li>
               ) : (
                 <>
                   <li className="nav-item">
-                    <Link className="nav-link" to="/login">Login</Link>
+                    <Link className="btn btn-primary me-2" to="/login">Log In</Link>
                   </li>
                   <li className="nav-item">
-                    <Link className="nav-link" to="/register">Register</Link>
+                    <Link className="btn btn-secondary" to="/register">Register</Link>
                   </li>
                 </>
               )}
@@ -71,6 +68,5 @@ const BaseLayout = ({ children }) => {
       </footer>
     </>
   );
-}
-
+};
 export default BaseLayout;

@@ -12,7 +12,7 @@
     margin-bottom: 20px;
   }
   
-  input[type="email"], input[type="password"] {
+  input[type="text"], input[type="email"], input[type="password"], input[type="tel"] {
     width: 100%;
     padding: 12px;
     margin-bottom: 15px;
@@ -21,22 +21,21 @@
     box-sizing: border-box;
   }
   
-  button[type="submit"] {
+  button {
     width: 100%;
     padding: 12px;
-    background-color: #007bff;
+    background-color: #28a745;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
   }
   
-  button[type="submit"]:hover {
-    background-color: #0056b3;
+  button:hover {
+    background-color: #218838;
   }
   
   .alert-danger {
     color: red;
     text-align: center;
   }
-  

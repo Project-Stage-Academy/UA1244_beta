@@ -286,12 +286,12 @@ LOGGING = {
         },
         'file': {
             'level': os.environ.get("LOG_LEVEL", "DEBUG"),
-            'class': 'logging.handlers.RotatingFileHandler',  # Зміна на RotatingFileHandler
+            'class': 'logging.handlers.RotatingFileHandler',  
             'filename': LOG_FILE_PATH,
-            'maxBytes': 1024 * 1024,  # Ліміт файлу логів - 1MB
-            'backupCount': 3,  # Кількість резервних файлів
+            'maxBytes': 1024 * 1024,  
+            'backupCount': 3,  
             'formatter': 'verbose',
-            'delay': True,  # Відкладене відкриття файлу
+            'delay': True,  
         },
     },
     'loggers': {

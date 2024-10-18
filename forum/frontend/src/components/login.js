@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext'; 
 import '../styles/login.css';
 import api from '../api';
 
@@ -8,18 +9,17 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext); 
 
   const handleSubmitForm = (email, password) => {
-    console.log("Email:", email, "Password:", password); 
     api.post('/api/v1/login/', {  
         email: email,
         password: password,
     })
     .then(response => {
       if (response.status !== 200) return;
-      localStorage.setItem('accessToken', response.data.access);
-      localStorage.setItem('refreshToken', response.data.refresh);
-      navigate('/select-role');
+      login(response.data.access); // Оновлюємо стан аутентифікації через контекст
+      navigate('/select-role'); // Перенаправляємо на select-role
     })
     .catch(error => {
       const errorMessage = error.response?.data?.non_field_errors || 
@@ -28,7 +28,7 @@ const Login = () => {
                            'Invalid credentials';
       setError(errorMessage);
     });
-  }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -36,7 +36,7 @@ const Login = () => {
   };
 
   return (
-    <div className="container">
+    <div className="container form-container">
       <h2>Login</h2>
       {error && <div className="alert alert-danger">{error}</div>}
       <form onSubmit={handleSubmit}>
@@ -46,6 +46,7 @@ const Login = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          className="form-group"
         />
         <input
           type="password"
@@ -53,12 +54,12 @@ const Login = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          className="form-group"
         />
-        <button type="submit">Login</button>
+        <button type="submit" className="btn btn-primary">Login</button>
       </form>
     </div>
   );
 };
 
 export default Login;
-
