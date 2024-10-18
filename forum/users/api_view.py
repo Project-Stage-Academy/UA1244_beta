@@ -43,12 +43,9 @@ class UserViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.G
         return [permission() for permission in permission_classes]
 
 
-class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+class RegisterViewSet(viewsets.GenericViewSet, viewsets.mixins.CreateModelMixin):
     """
-    Handles user registration.
-
-    Allows new users to register and receive authentication tokens. 
-    Accessible to anyone but rate limited.
+    Представлення для реєстрації нових користувачів.
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -198,4 +195,48 @@ class StartupOnlyView(APIView):
 
     def get(self, request):
         return Response({"message": "Welcome, Startup!"})
+    
 
+
+
+
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from .serializers import LoginSerializer  # Імпортуємо серіалізатор
+from django.views.decorators.csrf import csrf_exempt
+
+
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        logger.debug(f"Received login request with data: {request.data}")
+        
+        serializer = self.serializer_class(data=request.data)
+        
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.validated_data['user']
+
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+
+            data = {
+                "email": user.email,
+                "access": access_token,
+                "refresh": refresh_token,
+            }
+
+            logger.debug(f"Login successful for user: {user.email}")
+            return Response(data, status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Login failed with data: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

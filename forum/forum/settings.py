@@ -170,7 +170,7 @@ REST_FRAMEWORK = {
     ],
      
      'DEFAULT_THROTTLE_RATES': {
-        'anon': '10/day',
+        'anon': '1000/day',
     },
 }
 
@@ -285,12 +285,13 @@ LOGGING = {
             'formatter': 'simple',
         },
         'file': {
-            'level': os.environ.get("LOG_LEVEL"),
-            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'level': os.environ.get("LOG_LEVEL", "DEBUG"),
+            'class': 'logging.handlers.RotatingFileHandler',  # Зміна на RotatingFileHandler
             'filename': LOG_FILE_PATH,
-            'when': 'midnight',
-            'backupCount': 7,
+            'maxBytes': 1024 * 1024,  # Ліміт файлу логів - 1MB
+            'backupCount': 3,  # Кількість резервних файлів
             'formatter': 'verbose',
+            'delay': True,  # Відкладене відкриття файлу
         },
     },
     'loggers': {
@@ -346,4 +347,8 @@ CHANNEL_LAYERS = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',  # Додайте ваш React frontend
 ]

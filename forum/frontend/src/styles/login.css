@@ -1,0 +1,33 @@
+form-container {
+    max-width: 350px;
+    margin: 0 auto; 
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.btn-primary {
+    width: 100%; 
+    padding: 10px 20px;
+    font-size: 16px; 
+}
+
+.mt-5 {
+    margin-top: 3rem;
+}
+
+.form-container p {
+    text-align: center;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
