@@ -11,7 +11,7 @@ class User(EmbeddedDocument):
 
 class Message(EmbeddedDocument):
     sender = EmbeddedDocumentField(User)
-    message = StringField(required=True)
+    message = StringField(required=True, min_length=1)
 
 class Room(Document):
     created_at = DateTimeField(default=datetime.datetime.utcnow)
