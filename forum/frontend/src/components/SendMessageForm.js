@@ -15,7 +15,7 @@ const SendMessageForm = () => {
     })
     .then(() => {
       alert('Message sent successfully!');
-      navigate('/startups'); // Redirect back to the startups list
+      navigate('/startups'); 
     })
     .catch((error) => {
       console.error("Error sending message:", error);

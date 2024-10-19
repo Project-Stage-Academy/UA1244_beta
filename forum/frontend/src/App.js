@@ -11,7 +11,7 @@ import InvestorPage from './components/InvestorPage';
 import UnassignedPage from './components/UnassignedPage';
 import StartupsList from './components/StartupsList';
 import SendMessageForm from './components/SendMessageForm';
-import RoleInfo from './components/RoleInfo';
+import StartupItem from './components/StartupItem';
 
 function App() {
   return (
@@ -23,12 +23,12 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/select-role" element={<SelectRole />} />
-            <Route path="/startup" element={<StartupPage />} />
-            <Route path="/investor" element={<InvestorPage />} />
-            <Route path="/unassigned" element={<UnassignedPage />} />
-            <Route path="/startups" element={<StartupsList />} />
+            <Route path="/startup-page" element={<StartupPage />} />
+            <Route path="/investor-page" element={<InvestorPage />} />
+            <Route path="/unassigned-page" element={<UnassignedPage />} />
+            <Route path="/startuplist" element={<StartupsList />} />
             <Route path="/contact/:startupId" element={<SendMessageForm />} />
-            <Route path="/roleinfo" element={<RoleInfo />} />
+            <Route path="/startup/:id" element={<StartupItem />} />
           </Routes>
         </BaseLayout>
       </Router>

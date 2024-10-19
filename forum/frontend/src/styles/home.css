@@ -1,46 +1,91 @@
-.jumbotron {
-    background-color: #f8f9fa;
+/* Контейнер для сторінки Home */
+.home-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background-color: #fdfdfd;
     border-radius: 10px;
-    padding: 30px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    margin-top: 50px;
-}
-
-.jumbotron h1 {
-    color: #2c3e50;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Заголовок */
+  .home-heading {
+    font-size: 2.5rem;
+    color: #34495e;
+    margin-bottom: 25px;
     font-weight: bold;
-    font-size: 2rem;
-}
-
-.jumbotron p {
+  }
+  
+  /* Текст для опису */
+  .home-lead, .home-text {
+    font-size: 1.2rem;
     color: #7f8c8d;
-}
-
-.jumbotron .btn {
-    padding: 10px 20px;
+    margin-bottom: 20px;
+  }
+  
+  /* Попередження для користувача */
+  .home-warning {
     font-size: 1.1rem;
-    margin: 10px;
-    width: 200px;
+    color: #e74c3c;
+    margin-bottom: 20px;
+  }
+  
+  /* Лінія */
+  .home-divider {
+    width: 80%;
+    margin: 30px auto;
+    border-top: 1px solid #ecf0f1;
+  }
+  
+  /* Стилі для кнопок */
+  .home-btn-primary, .home-btn-secondary {
+    display: inline-block;
+    padding: 12px 30px;
+    font-size: 1rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-radius: 25px;
     transition: background-color 0.3s ease;
-}
-
-.btn-primary {
-    background-color: #2980b9;
-    border-color: #2980b9;
+    border: none;
+    text-decoration: none; /* Відсутність підкреслення */
+  }
+  
+  .home-btn-primary {
+    background-color: #007bff; /* Використання кольорів Bootstrap */
     color: #fff;
-}
-
-.btn-primary:hover {
-    background-color: #1f618d;
-}
-
-.btn-secondary {
-    background-color: #95a5a6;
-    border-color: #95a5a6;
+  }
+  
+  .home-btn-primary:hover {
+    background-color: #0056b3; /* Темніший відтінок при наведенні */
+  }
+  
+  .home-btn-secondary {
+    background-color: #28a745; /* Використання кольорів Bootstrap */
     color: #fff;
-}
-
-.btn-secondary:hover {
-    background-color: #7f8c8d;
-}
+  }
+  
+  .home-btn-secondary:hover {
+    background-color: #218838; /* Темніший відтінок при наведенні */
+  }
+  
+  /* Заборона підкреслення при наведенні на посилання */
+  .home-btn-primary:hover, .home-btn-secondary:hover {
+    text-decoration: none;
+  }
+  
+  /* Адаптивність для мобільних пристроїв */
+  @media (max-width: 768px) {
+    .home-heading {
+      font-size: 2rem;
+    }
+  
+    .home-container {
+      padding: 20px;
+    }
+  
+    .home-btn-primary, .home-btn-secondary {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  }
+  

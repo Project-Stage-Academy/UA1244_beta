@@ -64,7 +64,7 @@ const Register = () => {
   };
 
   return (
-    <div className="container">
+    <div className="register-container">
       <h2>Register</h2>
       {validationError && <p className="alert alert-danger">{validationError}</p>}
       {error && <p className="alert alert-danger">{error}</p>}

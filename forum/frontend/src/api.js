@@ -10,21 +10,15 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use(config => {
-  const token = Cookies.get('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 export const login = async (email, password) => {
   try {
     const response = await api.post('/api/v1/login/', { email, password }, { withCredentials: true });
-    console.log('User logged in successfully:', response.data);
     
-    Cookies.set('access_token', response.data.access, { secure: true });
-    Cookies.set('refresh_token', response.data.refresh, { secure: true });
+    Cookies.set('access_token', response.data.access);
+    Cookies.set('refresh_token', response.data.refresh);
+    
+    localStorage.setItem('access_token', response.data.access);
+    localStorage.setItem('refresh_token', response.data.refresh);
     
     return response.data;
   } catch (err) {
@@ -32,32 +26,23 @@ export const login = async (email, password) => {
   }
 };
 
-export const refreshToken = async (navigate) => {
+export const refreshToken = async () => {
   try {
-    const response = await api.post('/api/token/refresh/', {}, { withCredentials: true });
+    const refreshToken = Cookies.get('refresh_token') || localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      window.location.href = '/login';  
+      return;
+    }
+
+    const response = await api.post('/api/token/refresh/', { refresh: refreshToken }, { withCredentials: true });
     
-    Cookies.set('access_token', response.data.access, { secure: true });
+    Cookies.set('access_token', response.data.access);
+    localStorage.setItem('access_token', response.data.access);
+
     return response.data.access;
   } catch (err) {
-    navigate('/login');
+    window.location.href = '/login'; 
   }
-};
-
-export const fetchWithAuth = async (url, options = {}, navigate) => {
-  let token = Cookies.get('access_token');
-
-  if (!token) {
-    navigate('/login');
-    return;
-  }
-
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  return axios({ url, ...options, headers, withCredentials: true });
 };
 
 export default api;

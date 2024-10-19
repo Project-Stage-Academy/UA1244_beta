@@ -1,50 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
-import '../styles/startupdetails.css'; 
+import '../styles/startupItem.css';
 
-const StartupDetails = () => {
+const StartupItem = () => {
   const { id } = useParams();
-  const [startup, setStartup] = useState(null);
-  const [message, setMessage] = useState('');
+  const [startup, setStartup] = useState({});
+  const [message, setMessage] = useState('');  // Поле для повідомлення
+  const [messageSent, setMessageSent] = useState(false); // Стан для підтвердження відправки
 
   useEffect(() => {
-    axios.get(`http://localhost:8000/api/startup/${id}/`)
-      .then(response => {
-        setStartup(response.data);
-      })
-      .catch(error => {
-        console.error(error);
-      });
+    axios.get(`http://localhost:8000/api/startups/${id}/`)
+      .then(response => setStartup(response.data))
+      .catch(error => console.error(error));
   }, [id]);
 
   const handleMessageSend = () => {
-    axios.post(`http://localhost:8000/api/startup/${id}/message/`, { message })
-      .then(() => {
-        alert('Message sent successfully!');
-      })
-      .catch(error => {
-        console.error(error);
-      });
+    if (message.trim() === '') {
+      alert('Please enter a message before sending.');
+      return;
+    }
+
+    axios.post('http://localhost:8000/api/startups/message/', {
+      startup_id: id,
+      content: message,
+    }).then(response => {
+      alert('Message sent!');
+      setMessage('');  
+      setMessageSent(true);  
+    }).catch(error => {
+      console.error(error);
+      alert('Error sending message.');
+    });
   };
 
   return (
-    <div className="container">
-      {startup && (
-        <>
-          <h2>{startup.name}</h2>
-          <p>{startup.description}</p>
-          <textarea
-            className="form-control"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Write a message..."
-          />
-          <button className="btn btn-primary mt-3" onClick={handleMessageSend}>Send Message</button>
-        </>
-      )}
+    <div className="startup-item-container">
+      <h2>{startup.company_name}</h2>
+      <p>{startup.description}</p>
+      <p>Funding Stage: {startup.funding_stage}</p>
+      <p>Employees: {startup.number_of_employees}</p>
+      <p>Location: {startup.location ? `${startup.location.city}, ${startup.location.country}` : 'No location provided'}</p>
+      <p>Total Funding: ${startup.total_funding}</p>
+      <p>Website: {startup.website ? <a href={startup.website}>{startup.website}</a> : 'No website available'}</p>
+
+    
+      <div className="message-container">
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Enter your message here"
+          className="form-control"
+        />
+        <button onClick={handleMessageSend} className="message-button">
+          Send Message
+        </button>
+
+        {messageSent && <p className="text-success mt-2">Your message was sent successfully!</p>}
+      </div>
     </div>
   );
 };
 
-export default StartupDetails;
+export default StartupItem;
+

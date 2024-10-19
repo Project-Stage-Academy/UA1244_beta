@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import axios from 'axios';
+import api from '../api';
 import '../styles/selectrole.css'; 
 
 const SelectRole = () => {
@@ -9,15 +9,21 @@ const SelectRole = () => {
   const navigate = useNavigate();
 
   const handleRoleChange = (role) => {
-    axios.post('http://localhost:8000/api/v1/change-role/', { role }, {
+    api.post('/api/v1/change-role/', { role }, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
       }
-    }).then(response => {
+    })
+    .then(response => {
       changeRole(role);
-      navigate(`/role-info/${role}`);
-    }).catch(error => {
-      console.error(error);
+      navigate(`/`);
+    })
+    .catch(error => {
+      if (error.response && error.response.status === 401) {
+        console.error('Unauthorized: Invalid token or token expired');
+      } else {
+        console.error('Error changing role:', error);
+      }
     });
   };
 

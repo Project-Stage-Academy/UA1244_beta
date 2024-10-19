@@ -1,8 +1,9 @@
-from django.urls import path, include
-from .views import StartupListView, SendMessageView
+from django.urls import path
+from .views import StartupListView, SendMessageView, StartupDetailView
 
 urlpatterns = [
-    path('api/startups/', StartupListView.as_view(), name='startups_list'),
-    path('api/startups/message/', SendMessageView.as_view(), name='send_message'),
+    path('list/', StartupListView.as_view(), name='startups-list'),
+    path('message/', SendMessageView.as_view(), name='send_message'),
+    path('<startup_id>/', StartupDetailView.as_view(), name='startup-detail'),
 
 ]

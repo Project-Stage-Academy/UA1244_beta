@@ -18,8 +18,8 @@ const Login = () => {
     })
     .then(response => {
       if (response.status !== 200) return;
-      login(response.data.access); // Оновлюємо стан аутентифікації через контекст
-      navigate('/select-role'); // Перенаправляємо на select-role
+      login(response.data.access); 
+      navigate('/select-role'); 
     })
     .catch(error => {
       const errorMessage = error.response?.data?.non_field_errors || 
@@ -36,7 +36,7 @@ const Login = () => {
   };
 
   return (
-    <div className="container form-container">
+    <div className="login-container form-container">
       <h2>Login</h2>
       {error && <div className="alert alert-danger">{error}</div>}
       <form onSubmit={handleSubmit}>
