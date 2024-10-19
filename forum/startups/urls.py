@@ -1,6 +1,8 @@
 from django.urls import path, include
-from . import views
+from .views import StartupListView, SendMessageView
 
 urlpatterns = [
-    path("", views.startups, name="startups"),
+    path('api/startups/', StartupListView.as_view(), name='startups_list'),
+    path('api/startups/message/', SendMessageView.as_view(), name='send_message'),
+
 ]

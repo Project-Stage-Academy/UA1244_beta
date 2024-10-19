@@ -9,7 +9,9 @@ import BaseLayout from './components/BaseLayout';
 import StartupPage from './components/StartupPage';
 import InvestorPage from './components/InvestorPage';
 import UnassignedPage from './components/UnassignedPage';
-import StartupsList from './components/StartupsList'; 
+import StartupsList from './components/StartupsList';
+import SendMessageForm from './components/SendMessageForm';
+import RoleInfo from './components/RoleInfo';
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
             <Route path="/investor" element={<InvestorPage />} />
             <Route path="/unassigned" element={<UnassignedPage />} />
             <Route path="/startups" element={<StartupsList />} />
+            <Route path="/contact/:startupId" element={<SendMessageForm />} />
+            <Route path="/roleinfo" element={<RoleInfo />} />
           </Routes>
         </BaseLayout>
       </Router>

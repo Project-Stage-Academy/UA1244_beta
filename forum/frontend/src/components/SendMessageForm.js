@@ -1,59 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import '../styles/sendMessageForm.css';
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useParams, useNavigate } from 'react-router-dom';
 
-const SendMessageForm = ({ startupId, onClose }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+const SendMessageForm = () => {
+  const [message, setMessage] = useState('');
+  const { startupId } = useParams();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    // Завантажуємо існуючі повідомлення стартапу
-    const fetchMessages = async () => {
-      const response = await fetch(`/api/startups/${startupId}/messages`);
-      const data = await response.json();
-      setMessages(data);
-    };
-
-    fetchMessages();
-  }, [startupId]);
-
-  const handleSendMessage = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (newMessage.trim() === '') return;
-
-    // Надсилаємо повідомлення через API
-    const response = await fetch(`/api/startups/${startupId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: newMessage })
+    axios.post('/api/startups/message/', {
+      startup_id: startupId,
+      content: message,
+    })
+    .then(() => {
+      alert('Message sent successfully!');
+      navigate('/startups'); // Redirect back to the startups list
+    })
+    .catch((error) => {
+      console.error("Error sending message:", error);
     });
-
-    const newMsg = await response.json();
-    setMessages([...messages, newMsg]);
-    setNewMessage('');
   };
 
   return (
-    <div className="send-message-form">
-      <h4>Messages</h4>
-      <div className="messages-list">
-        {messages.map((msg, index) => (
-          <p key={index}>{msg.content}</p>
-        ))}
-      </div>
-      <form onSubmit={handleSendMessage}>
-        <div className="form-group">
-          <input
-            type="text"
-            placeholder="Type your message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="form-control"
-          />
-        </div>
-        <div className="form-buttons">
-          <button type="submit" className="btn btn-primary">Send</button>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
-        </div>
+    <div>
+      <h2>Send Message</h2>
+      <form onSubmit={handleSubmit}>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your message here"
+          required
+        />
+        <button type="submit" className="btn btn-primary">Send</button>
       </form>
     </div>
   );

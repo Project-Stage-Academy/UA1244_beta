@@ -38,7 +38,7 @@ urlpatterns = [
     # path("communications/", include("communications.urls")),
     # path("dashboard/", include("dashboard.urls")),
     # path("investors/", include("investors.urls")),
-    # path("startups/", include("startups.urls")),
+    path("", include("startups.urls")),
     path("api/v1/", include("notifications.urls")),
     path('', index, name='index'),
 
