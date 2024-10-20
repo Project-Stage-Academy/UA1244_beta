@@ -350,5 +350,5 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',  # Додайте ваш React frontend
+    'http://localhost:3000',  
 ]
