@@ -91,9 +91,6 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from django.contrib.auth import authenticate
-
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -117,5 +114,5 @@ class LoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise AuthenticationFailed("Incorrect password.")
         
-        # Повертаємо користувача у валідаційних даних
+    
         return {"user": user}

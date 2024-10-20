@@ -27,9 +27,9 @@ services:
   # React application
   react:
     build:
-      context: ./frontend
+      context: ./forum/frontend
     volumes:
-      - ./frontend:/app
+      - ./forum/frontend:/app
     ports:
       - "3000:3000"
     command: npm start
