@@ -1,0 +1,16 @@
+.send-message-form {
+    border-top: 1px solid #ccc;
+    margin-top: 20px;
+  }
+  
+  .messages-list {
+    margin-bottom: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .form-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }

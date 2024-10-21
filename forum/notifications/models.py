@@ -7,10 +7,6 @@ from django.utils import timezone
 from datetime import timedelta
 
 
-from django.utils import timezone
-from django.db import models
-from datetime import timedelta
-from django.core.exceptions import ValidationError
 
 def get_expiration_date():
     """
