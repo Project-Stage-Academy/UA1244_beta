@@ -10,10 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
-from dotenv import load_dotenv
 import os
 from datetime import timedelta
+from pathlib import Path
+
+import mongoengine
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -35,36 +37,42 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 
 INSTALLED_APPS = [
     "daphne",
-    "channels",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
     'phonenumber_field',
+    'simple_history',
     'users',
     'profiles',
     'projects',
     'communications',
     'dashboard',
     'investors',
+    'startups',
     'rest_framework',
     'djoser',
-    'startups',
     'django_extensions',
     'notifications.apps.NotificationsConfig',
     'corsheaders',
-    
-
-
-
+  
 ]
 
-# ASGI application configuration
-ASGI_APPLICATION = "forum.asgi.application"
 
 AUTH_USER_MODEL = 'users.User'
+
+
+
+ASGI_APPLICATION = 'forum.asgi.application'
+
+CHANNEL_LAYERS = {
+        'default':{
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            },
+        }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -75,6 +83,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
 ROOT_URLCONF = 'forum.urls'
@@ -109,8 +118,20 @@ DATABASES = {
         "PASSWORD": os.environ.get('DATABASE_PASSWORD'),
         "HOST": os.environ.get('DATABASE_HOST'),
         "PORT": os.environ.get('DATABASE_PORT'),
+    },
+    'mongodb': {
+        'NAME': os.environ.get("MONGO_ROOT_NAME"),
+        'USERNAME': os.environ.get("MONGO_ROOT_USERNAME"),
+        'PASSWORD': os.environ.get("MONGO_ROOT_PASSWORD"),
+        "HOST": os.environ.get('MONGO_HOST'),
+        'PORT': 8081,
     }
 }
+
+mongoengine.connect(db=DATABASES["mongodb"]["NAME"],
+                   host=DATABASES["mongodb"]["HOST"],
+                   username=DATABASES["mongodb"]["USERNAME"],
+                   password=DATABASES["mongodb"]["PASSWORD"])
 
 
 # Password validation
@@ -176,7 +197,7 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
@@ -251,6 +272,8 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
 # Celery settings
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
