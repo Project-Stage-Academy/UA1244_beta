@@ -30,7 +30,6 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'daphne',
     'django.contrib.staticfiles',
     'phonenumber_field',
     'simple_history',
@@ -43,8 +42,6 @@ INSTALLED_APPS = [
     'startups',
     'rest_framework',
     'djoser',
-    'startups',
-    'channels',
     'django_extensions',
     'notifications.apps.NotificationsConfig',
     
@@ -182,7 +179,7 @@ REST_FRAMEWORK = {
     ],
      
      'DEFAULT_THROTTLE_RATES': {
-        'anon': '10/day',
+        'anon': '1000/day',
     },
 }
 
@@ -236,7 +233,7 @@ DJOSER = {
     'SET_PASSWORD_RETYPE': True,
     'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
     'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'SEND_ACTIVATION_EMAIL': False,
+    'SEND_ACTIVATION_EMAIL': True,
     'SERIALIZERS': {
         'user_create': 'users.serializers.UserSerializer',
         'user': 'users.serializers.UserSerializer',
@@ -265,7 +262,8 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-
+# New setting for retrying broker connections on startup (for Celery 6.0)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Logging configuration
 LOG_FILE_PATH = os.path.join('logs', 'forum.log')
