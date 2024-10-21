@@ -1,35 +1,43 @@
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import React, { Suspense } from 'react'; 
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import Home from './components/home';
-import Login from './components/login';
-import Register from './components/register';
-import SelectRole from './components/SelectRole';
 import BaseLayout from './components/BaseLayout';
-import StartupPage from './components/StartupPage';
-import InvestorPage from './components/InvestorPage';
-import UnassignedPage from './components/UnassignedPage';
-import StartupsList from './components/StartupsList';
-import SendMessageForm from './components/SendMessageForm';
-import StartupItem from './components/StartupItem';
+import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './ProtectedRoute';
+
+const Home = React.lazy(() => import('./components/home'));
+const Login = React.lazy(() => import('./components/login'));
+const Register = React.lazy(() => import('./components/register'));
+const SelectRole = React.lazy(() => import('./components/SelectRole'));
+const StartupPage = React.lazy(() => import('./components/StartupPage'));
+const InvestorPage = React.lazy(() => import('./components/InvestorPage'));
+const UnassignedPage = React.lazy(() => import('./components/UnassignedPage'));
+const StartupsList = React.lazy(() => import('./components/StartupsList'));
+const SendMessageForm = React.lazy(() => import('./components/SendMessageForm'));
+const StartupItem = React.lazy(() => import('./components/StartupItem'));
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <BaseLayout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/select-role" element={<SelectRole />} />
-            <Route path="/startup-page" element={<StartupPage />} />
-            <Route path="/investor-page" element={<InvestorPage />} />
-            <Route path="/unassigned-page" element={<UnassignedPage />} />
-            <Route path="/startuplist" element={<StartupsList />} />
-            <Route path="/contact/:startupId" element={<SendMessageForm />} />
-            <Route path="/startup/:id" element={<StartupItem />} />
-          </Routes>
+          <ErrorBoundary>
+            <Suspense fallback={<div>Loading...</div>}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/select-role" element={<SelectRole />} />
+                {/* Використання ProtectedRoute */}
+                <Route path="/startup-page" element={<ProtectedRoute element={StartupPage} />} />
+                <Route path="/investor-page" element={<ProtectedRoute element={InvestorPage} />} />
+                <Route path="/unassigned-page" element={<ProtectedRoute element={UnassignedPage} />} />
+                <Route path="/startuplist" element={<ProtectedRoute element={StartupsList} />} />
+                <Route path="/contact/:startupId" element={<ProtectedRoute element={SendMessageForm} />} />
+                <Route path="/startup/:id" element={<ProtectedRoute element={StartupItem} />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </BaseLayout>
       </Router>
     </AuthProvider>

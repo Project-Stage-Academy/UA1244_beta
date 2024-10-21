@@ -8,25 +8,30 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext); 
+  const { login } = useContext(AuthContext);
 
   const handleSubmitForm = (email, password) => {
+    setLoading(true);
     api.post('/api/v1/login/', {  
         email: email,
         password: password,
     })
     .then(response => {
       if (response.status !== 200) return;
-      login(response.data.access); 
-      navigate('/select-role'); 
+      login(response.data.access);
+      navigate('/select-role');
     })
     .catch(error => {
       const errorMessage = error.response?.data?.non_field_errors || 
                            error.response?.data?.email || 
                            error.response?.data?.password || 
-                           'Invalid credentials';
+                           'Invalid credentials. Please check your email and password.';
       setError(errorMessage);
+    })
+    .finally(() => {
+      setLoading(false);
     });
   };
 
@@ -56,7 +61,9 @@ const Login = () => {
           required
           className="form-group"
         />
-        <button type="submit" className="btn btn-primary">Login</button>
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
       </form>
     </div>
   );

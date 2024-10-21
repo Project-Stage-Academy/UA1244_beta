@@ -6,12 +6,14 @@ import '../styles/register.css';
 const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const validateInputs = () => {
@@ -21,7 +23,7 @@ const Register = () => {
     if (!firstName) return 'First name is required';
     if (!lastName) return 'Last name is required';
     if (!phone) return 'Phone number is required';
-    if (!/^\+380\d{9}$/.test(phone)) return 'Phone number must be in the format +380XXXXXXXXX (12 digits)';
+    if (!/^\+?\d{10,15}$/.test(phone)) return 'Phone number must be in the format +XXXXXXXXXXX';
     if (password.length < 8) return 'Password must be at least 8 characters long';
     return null;
   };
@@ -35,6 +37,8 @@ const Register = () => {
       return;
     }
 
+    setLoading(true);
+    
     try {
       const response = await axios.post('http://localhost:8000/api/v1/register/', {
         email: email,
@@ -60,6 +64,8 @@ const Register = () => {
       } else {
         setError('An error occurred. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,19 +105,29 @@ const Register = () => {
         />
         <input
           type="tel"
-          placeholder="Phone (+380XXXXXXXXX)"
+          placeholder="Phone (+XXXXXXXXXXX)"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           required
         />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Register</button>
+        <div className="password-container">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <span 
+            className={`password-toggle ${showPassword ? 'show' : 'hide'}`}
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? '🙈' : '🙉'}
+          </span>
+        </div>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Registering...' : 'Register'}
+        </button>
       </form>
     </div>
   );

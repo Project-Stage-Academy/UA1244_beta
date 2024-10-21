@@ -6,13 +6,20 @@ import '../styles/startupItem.css';
 const StartupItem = () => {
   const { id } = useParams();
   const [startup, setStartup] = useState({});
-  const [message, setMessage] = useState('');  // Поле для повідомлення
-  const [messageSent, setMessageSent] = useState(false); // Стан для підтвердження відправки
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');  
+  const [messageSent, setMessageSent] = useState(false);
 
   useEffect(() => {
     axios.get(`http://localhost:8000/api/startups/${id}/`)
-      .then(response => setStartup(response.data))
-      .catch(error => console.error(error));
+      .then(response => {
+        setStartup(response.data);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error(error);
+        setLoading(false);
+      });
   }, [id]);
 
   const handleMessageSend = () => {
@@ -34,6 +41,10 @@ const StartupItem = () => {
     });
   };
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="startup-item-container">
       <h2>{startup.company_name}</h2>
@@ -44,7 +55,6 @@ const StartupItem = () => {
       <p>Total Funding: ${startup.total_funding}</p>
       <p>Website: {startup.website ? <a href={startup.website}>{startup.website}</a> : 'No website available'}</p>
 
-    
       <div className="message-container">
         <textarea
           value={message}
@@ -63,4 +73,3 @@ const StartupItem = () => {
 };
 
 export default StartupItem;
-

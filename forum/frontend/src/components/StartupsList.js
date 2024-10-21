@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 const StartupsList = () => {
   const [startups, setStartups] = useState([]);
+  const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
     const accessToken = localStorage.getItem('accessToken'); 
@@ -19,11 +20,17 @@ const StartupsList = () => {
       .then(response => {
         console.log('Response from API:', response.data);  
         setStartups(response.data);
+        setLoading(false); 
       })
       .catch(error => {
         console.error('Error fetching startups:', error);  
+        setLoading(false);  
       });
   }, []);
+
+  if (loading) {
+    return <div>Loading...</div>; 
+  }
 
   return (
     <div className="startup-list-container">
