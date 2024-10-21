@@ -1,11 +1,9 @@
-import uuid
-
-from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.translation import gettext_lazy as _
-
-from simple_history.models import HistoricalRecords
 from startups.models import Startup
+from investors.models import Investor
+import uuid
+from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
 
 class Media(models.Model):
@@ -31,7 +29,6 @@ class Media(models.Model):
 
     def __str__(self):
         return f"Media {self.media_id}"
-
 
 
 class ProjectStatus(models.TextChoices):
@@ -73,9 +70,6 @@ class Project(models.Model):
     last_update = models.DateTimeField(auto_now=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
 
-    # Add a historical record to track changes
-    history = HistoricalRecords()
-
     class Meta:
         verbose_name = 'Project'
         verbose_name_plural = 'Projects'
@@ -87,3 +81,82 @@ class Project(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Subscription(models.Model):
+    """
+        Model represents a subscription to a project by an investor.
+
+        This model captures the details of an investment made by an investor in a specific project.
+
+        Attributes:
+            funding_id (UUIDField): The unique identifier for the subscription. Automatically generated.
+            project_id (ForeignKey): A reference to the associated project. When the project is deleted, this
+                field will be set to null.
+            investor_id (ForeignKey): A reference to the investor making the subscription. When the investor
+                is deleted, this field will be set to null.
+            funded_amount (DecimalField): The amount of money that has been funded by the investor for the project.
+            funded_at (DateTimeField): The timestamp when the funding was made. Automatically set when the
+                subscription is created.
+            investment_share (DecimalField): The percentage share of the investment in relation to the total
+                required amount of the project. Limited to a maximum of 5 digits with 2 decimal places.
+            is_rejected (BooleanField): Indicates whether the subscription has been rejected. Defaults to False.
+            rejection_reason (CharField): The reason for the rejection if the subscription is rejected.
+
+        """
+    FUNDING_TYPE_CHOICES = [
+        ('equity', 'Equity Funding'),
+        ('loan', 'Loan Funding'),
+        ('grant', 'Grant'),
+    ]
+    funding_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project_id = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True,
+                                   related_name='subscribed_projects')
+    investor_id = models.ForeignKey(Investor, on_delete=models.SET_NULL, null=True, related_name='projects',
+                                    db_index=True)
+    funded_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    funded_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    funding_type = models.CharField(max_length=20, choices=FUNDING_TYPE_CHOICES, default='equity')
+    investment_share = models.DecimalField(max_digits=5, decimal_places=2)
+    is_rejected = models.BooleanField(default=False)
+    rejection_reason = models.CharField(max_length=255, db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['project_id', 'investor_id'], name='unique_project_investor')
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.funded_amount < 0:
+            raise ValidationError(_('Funded amount must be a positive number.'))
+
+        if self.project_id:
+            total_share = self.project_id.subscribed_projects.aggregate(models.Sum('investment_share'))[
+                              'investment_share__sum'] or 0
+        else:
+            total_share = 0
+
+        if total_share + self.investment_share > 100:
+            raise ValidationError(_('Total investment share for this project cannot exceed 100%.'))
+
+        # validate correctness of the "validation_reason" field
+        if not self.is_rejected and self.rejection_reason:
+            raise ValidationError(_('The field should be empty'))
+        if self.is_rejected and not self.rejection_reason:
+            raise ValidationError(_('The reason of rejection should be provided.'))
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        if not self.funded_amount:
+            raise ValidationError(_("Funded amount must be provided."))
+
+        if not self.project_id or not self.project_id.required_amount:
+            raise ValidationError(_("Project must have a valid ID and required amount."))
+
+        self.investment_share = (self.funded_amount / self.project_id.required_amount) * 100
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'Subscription {self.funding_id} by Investor {self.investor_id} for {self.investment_share}% ' \
+               f'of the project'
