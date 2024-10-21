@@ -3,6 +3,7 @@ from django.db.models import UniqueConstraint
 from django.contrib.auth import get_user_model
 from startups.models import Startup
 from startups.models import Location
+from users.models import User
 import uuid
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
@@ -57,7 +58,6 @@ class Investor(models.Model):
 
     def __str__(self):
         return self.company_name
-
 
 class InvestorFollow(models.Model):
     """
