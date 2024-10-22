@@ -36,7 +36,6 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -56,12 +55,14 @@ INSTALLED_APPS = [
     'djoser',
     'django_extensions',
     'notifications.apps.NotificationsConfig',
+    'corsheaders',
+  
 ]
 
-# ASGI application configuration
-ASGI_APPLICATION = "forum.asgi.application"
 
 AUTH_USER_MODEL = 'users.User'
+
+
 
 ASGI_APPLICATION = 'forum.asgi.application'
 
@@ -79,6 +80,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
@@ -165,7 +167,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / "static"]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -305,12 +307,13 @@ LOGGING = {
             'formatter': 'simple',
         },
         'file': {
-            'level': os.environ.get("LOG_LEVEL"),
-            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'level': os.environ.get("LOG_LEVEL", "DEBUG"),
+            'class': 'logging.handlers.RotatingFileHandler',  
             'filename': LOG_FILE_PATH,
-            'when': 'midnight',
-            'backupCount': 7,
+            'maxBytes': 1024 * 1024,  
+            'backupCount': 3,  
             'formatter': 'verbose',
+            'delay': True,  
         },
     },
     'loggers': {
@@ -360,3 +363,14 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+
+# CORS FOR REACT
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',  
+]
