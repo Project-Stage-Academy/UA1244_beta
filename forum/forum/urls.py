@@ -36,13 +36,15 @@ urlpatterns = [
 
     # Application URLs
     path("api/v1/", include("users.urls")),
-    # path("projects/", include("projects.urls")),
-    # path("profiles/", include("profiles.urls")),
-    path("", include("communications.urls")),
-    # path("dashboard/", include("dashboard.urls")),
-    # path("investors/", include("investors.urls")),
+    path("projects/", include("projects.urls")),
+    path("profiles/", include("profiles.urls")),
+    path("communications/", include("communications.urls")),
+    path("dashboard/", include("dashboard.urls")),
+    path("investors/", include("investors.urls")),
+    path('', index, name='index'),
     path("api/startups/", include("startups.urls")),
     path("api/notifications/", include("notifications.urls")),
+
 
 
     # JWT Token URLs
