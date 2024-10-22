@@ -1,7 +1,7 @@
 from django.urls import path, include
 from . import views
 from rest_framework.routers import DefaultRouter
-from .api_view import UserViewSet, RegisterViewSet, ChangeActiveRoleAPIView, InvestorOnlyView, StartupOnlyView
+from .api_view import UserViewSet, RegisterViewSet, ChangeActiveRoleAPIView, InvestorOnlyView, StartupOnlyView, LoginAPIView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -12,9 +12,8 @@ urlpatterns = [
     path('change-role/', ChangeActiveRoleAPIView.as_view(), name='change-role'),
     path('investor-only/', InvestorOnlyView.as_view(), name='investor-only'),
     path('startup-only/', StartupOnlyView.as_view(), name='startup-only'),
-    path('select-role/', views.select_role, name='select_role'),
-    path('login/', views.user_login, name='login'),
-    path('logout/', views.user_logout, name='logout'),
+    path('login/', LoginAPIView.as_view(), name='login'),
+    
     
 ]
 
