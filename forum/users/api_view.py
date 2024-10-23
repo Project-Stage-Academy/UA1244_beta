@@ -14,6 +14,16 @@ from django.core.exceptions import ObjectDoesNotExist
 from datetime import timedelta
 from rest_framework.exceptions import NotFound
 from .serializers import CustomToken
+import requests
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+import os
+
+
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"
+GITHUB_USER_URL = "https://api.github.com/user"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
 User = get_user_model()
 
@@ -348,5 +358,154 @@ class LoginAPIView(APIView):
 
 
             return Response(data, status=status.HTTP_200_OK)
-        else:
-            return create_error_response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+
+
+class OAuthTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        """
+        Handles the OAuth token exchange and user authentication.
+
+        Args:
+            request: The incoming HTTP request.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the access and refresh tokens, 
+            or an error message if the exchange fails.
+        """
+        provider = request.data.get('provider')
+        code = request.data.get('code')
+
+        if not provider or not code:
+            return Response({"error": "Provider and code are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            if provider == 'google':
+                access_token = self.exchange_google_code_for_token(code)
+                user_data = self.get_google_user_profile(access_token)
+            elif provider == 'github':
+                access_token = self.exchange_github_code_for_token(code)
+                user_data = self.get_github_user_profile(access_token)
+            else:
+                return Response({"error": "Unsupported provider"}, status=status.HTTP_400_BAD_REQUEST)
+
+            user = self.get_or_create_user(user_data)
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_or_create_user(self, user_data):
+        """
+        Retrieves or creates a user based on the provided user data.
+
+        Args:
+            user_data: A dictionary containing user information.
+
+        Returns:
+            User: The created or retrieved user object.
+        """
+        email = user_data.get('email')
+        user, created = User.objects.get_or_create(email=email)
+
+        if created:
+            user.username = user_data.get('username', email.split('@')[0])
+            user.save()
+
+        return user
+
+    def exchange_google_code_for_token(self, code):
+        """
+        Exchanges the provided authorization code for an access token from Google.
+
+        Args:
+            code: The authorization code received from Google.
+
+        Returns:
+            str: The access token obtained from Google.
+
+        Raises:
+            Exception: If the access token cannot be obtained from Google.
+        """
+        url = GOOGLE_TOKEN_URL
+        data = {
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
+            'client_secret': os.environ.get('GOOGLE_CLIENT_SECRET'),
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': os.environ.get('GOOGLE_REDIRECT_URI'),
+        }
+
+        response = requests.post(url, data=data)
+        response_data = response.json()
+ 
+
+        if 'access_token' not in response_data:
+            raise Exception("Failed to obtain access token from Google")
+        
+        return response_data['access_token']
+
+    def get_google_user_profile(self, access_token):
+        """
+        Retrieves the user profile information from Google using the access token.
+
+        Args:
+            access_token: The access token received from Google.
+
+        Returns:
+            dict: The user profile data obtained from Google.
+        """
+        url = GOOGLE_USERINFO_URL
+        params = {'access_token': access_token}
+        response = requests.get(url, params=params)
+        return response.json()
+
+    def exchange_github_code_for_token(self, code):
+        """
+        Exchanges the provided authorization code for an access token from GitHub.
+
+        Args:
+            code: The authorization code received from GitHub.
+
+        Returns:
+            str: The access token obtained from GitHub.
+
+        Raises:
+            Exception: If the access token cannot be obtained from GitHub.
+        """
+        url = GITHUB_TOKEN_URL
+        data = {
+            'client_id': os.environ.get('GITHUB_CLIENT_ID'),
+            'client_secret': os.environ.get('GITHUB_CLIENT_SECRET'),
+            'code': code,
+        }
+        headers = {'Accept': 'application/json'}
+        response = requests.post(url, data=data, headers=headers)
+        response_data = response.json()
+
+        if 'access_token' not in response_data:
+            raise Exception("Failed to obtain access token from GitHub")
+        
+        return response_data['access_token']
+
+    def get_github_user_profile(self, access_token):
+        """
+        Retrieves the user profile information from GitHub using the access token.
+
+        Args:
+            access_token: The access token received from GitHub.
+
+        Returns:
+            dict: The user profile data obtained from GitHub.
+        """
+        url = GITHUB_USER_URL
+        headers = {'Authorization': f'token {access_token}'}
+        response = requests.get(url, headers=headers)
+        return response.json()

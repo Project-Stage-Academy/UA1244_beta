@@ -24,7 +24,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from users.api_view import ActivateAccountView, SignOutView
+from users.api_view import ActivateAccountView, SignOutView, OAuthTokenObtainPairView
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 
@@ -68,6 +68,8 @@ urlpatterns = [
 
     # allauth
      path('accounts/', include('allauth.urls')),
+     path('api/token/oauth/', OAuthTokenObtainPairView.as_view(), name='token_obtain_oauth'),
+
 ]
 
 

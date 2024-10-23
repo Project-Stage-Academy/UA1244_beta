@@ -4,6 +4,7 @@ from investors.models import Investor
 import uuid
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from simple_history.models import HistoricalRecords
 
 
 class Media(models.Model):
@@ -69,6 +70,7 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_update = models.DateTimeField(auto_now=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Project'
