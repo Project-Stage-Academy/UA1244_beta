@@ -77,6 +77,7 @@ class InvestorFollow(models.Model):
         started following the startup. This field is automatically set to 
         the current date and time when the relationship is created.
     """
+    
     investor = models.ForeignKey(Investor, on_delete=models.CASCADE)
     startup = models.ForeignKey(Startup, on_delete=models.CASCADE, related_name='startup_investors')
     saved_at = models.DateTimeField(auto_now_add=True)
@@ -87,4 +88,4 @@ class InvestorFollow(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.investor.username} follows {self.startup.company_name}"
+        return f"{self.investor.company_name} follows {self.startup.company_name}"
