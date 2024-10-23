@@ -36,7 +36,6 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '0.0.0.0']
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -63,8 +62,6 @@ INSTALLED_APPS = [
 ASGI_APPLICATION = "forum.asgi.application"
 
 AUTH_USER_MODEL = 'users.User'
-
-ASGI_APPLICATION = 'forum.asgi.application'
 
 CHANNEL_LAYERS = {
         'default':{
@@ -342,21 +339,6 @@ LOGGING = {
             'handlers': ['console', 'file'],
             'level': os.environ.get("LOG_LEVEL"),
             'propagate': True,
-        },
-    },
-}
-
-
-
-
-# channels settings
-ASGI_APPLICATION = 'forum.asgi.application'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
         },
     },
 }
