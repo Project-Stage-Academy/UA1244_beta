@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from datetime import date
-
 from .models import Project
 from startups.models import Startup
 
@@ -13,13 +12,12 @@ class ProjectSerializer(serializers.ModelSerializer):
     for creating and updating project instances.
     """
     startup = serializers.PrimaryKeyRelatedField(queryset=Startup.objects.all())
-
     class Meta:
         model = Project
         fields = [
                 'project_id', 'startup', 'title', 'description', 'required_amount', 'status',
                 'planned_start_date', 'actual_start_date', 'planned_finish_date',
-                'actual_finish_date', 'created_at', 'last_update', 'media'
+                'actual_finish_date', 'created_at', 'last_update', 'industry', 'media'
         ]
 
     def validate(self, data):
