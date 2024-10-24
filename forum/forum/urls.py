@@ -41,7 +41,6 @@ urlpatterns = [
     path("communications/", include("communications.urls")),
     path("dashboard/", include("dashboard.urls")),
     path("investors/", include("investors.urls")),
-    path('', index, name='index'),
     path("api/startups/", include("startups.urls")),
     path("api/notifications/", include("notifications.urls")),
 

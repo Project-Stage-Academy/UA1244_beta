@@ -4,6 +4,8 @@ from investors.models import Investor
 import uuid
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from decimal import Decimal
+from simple_history.models import HistoricalRecords
 
 
 class Media(models.Model):
@@ -69,18 +71,37 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_update = models.DateTimeField(auto_now=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Project'
         verbose_name_plural = 'Projects'
 
-    def clean(self):
-        if self.actual_finish_date and self.planned_start_date:
-            if self.actual_finish_date < self.planned_start_date:
-                raise ValidationError(_('Actual finish date cannot be earlier than planned start date.'))
+    def funding_received(self):
+        """
+          Calculate the total funding received for the project.
 
-    def __str__(self):
-        return self.title
+          If funding is based on monetary contributions, it sums the funded_amount.
+          If funding is based on percentage shares, it calculates the total share and ensures it does not exceed 100%.
+        """
+        funded_amount_by_now = (self.subscribed_projects.aggregate(models.Sum('funded_amount'))['funded_amount__sum']
+                                or Decimal('0.00'))
+
+        # can be also used if needed.
+        # funded_share_by_now = self.subscribed_projects.aggregate(models.Sum('investment_share'))['investment_share__sum']
+        # or Decimal('0.00')
+
+        return funded_amount_by_now
+
+
+def clean(self):
+    if self.actual_finish_date and self.planned_start_date:
+        if self.actual_finish_date < self.planned_start_date:
+            raise ValidationError(_('Actual finish date cannot be earlier than planned start date.'))
+
+
+def __str__(self):
+    return self.title
 
 
 class Subscription(models.Model):
