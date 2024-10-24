@@ -54,6 +54,7 @@ class Project(models.Model):
         actual_finish_date (date): Actual finish date of the project.
         created_at (datetime): Timestamp of when the project was created.
         last_update (datetime): Timestamp of the last update to the project.
+        industry (str): Industry related to the project.
         media (ForeignKey): Reference to the Media associated with the project.
     """
     project_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -68,6 +69,7 @@ class Project(models.Model):
     actual_finish_date = models.DateField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_update = models.DateTimeField(auto_now=True)
+    industry = models.CharField(max_length=100, db_index=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
 
     class Meta:
