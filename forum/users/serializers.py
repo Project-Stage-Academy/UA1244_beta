@@ -6,6 +6,7 @@ from django.urls import reverse
 from rest_framework_simplejwt.tokens import AccessToken
 from datetime import timedelta
 from .tasks import send_activation_email
+from rest_framework.exceptions import AuthenticationFailed
 
 
 
@@ -82,10 +83,36 @@ class UserSerializer(serializers.ModelSerializer):
         if roles_data:
             user.roles.set(roles_data)
 
-        activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
         
         token = CustomToken.for_user(user)
         activation_url = f"{settings.FRONTEND_URL}{reverse('activate', kwargs={'token': str(token)})}"
         send_activation_email.delay(user.user_id, activation_url)
 
         return user
+
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+
+    def validate(self, data):
+        email = data.get("email")
+        password = data.get("password")
+
+        # Аутентифікація через email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise AuthenticationFailed("User with this email does not exist.")
+
+        # Перевірка пароля
+        if not user.check_password(password):
+            raise AuthenticationFailed("Incorrect password.")
+        
+    
+        return {"user": user}

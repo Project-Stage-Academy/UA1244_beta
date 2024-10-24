@@ -158,3 +158,66 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
+
+/forum/logs/
+
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# npm and yarn files and caches
+.npm/
+.yarn/
+.yarn-integrity
+.parcel-cache/
+
+# Webpack and Babel cache (if using)
+/.cache/
+.babelrc
+.babelrc.js
+.babelrc.json
+babel.config.js
+
+# IDE and editor settings
+.vscode/
+.idea/
+
+# Build folders
+/dist
+/out
+/build
+/public/static
+
+# TypeScript (if using TypeScript)
+*.tsbuildinfo
+
+# ESLint and Prettier cache and config files
+.eslintcache
+
+# CI/CD scripts (if needed)
+.circleci/
+.github/
+
+# Tailwind or other CSS tools
+.postcssrc
+.postcssrc.js
+.postcssrc.json

@@ -143,3 +143,22 @@ pylint --load-plugins pylint_django [your_django_app_folder]
 ```shell
 cd forum && python manage.py createsuperuser
 ```
+
+Instructions for Installing React, Dependencies, and Running the React Server
+
+Navigate to the Frontend Directory:First, ensure you are inside the frontend directory where the React project is located: 
+
+cd frontend
+
+Install Dependencies:Once you're in the frontend directory, install the required dependencies specified in the package.json file. This will include packages like React, Axios, React Router:
+
+npm install
+
+This command will read the package.json file and install all necessary libraries and tools for the project.
+Run the React Development Server:After the dependencies have been installed, you can start the React development server using:
+
+npm start
+
+The React development server will now run on http://localhost:3000. This server serves the frontend, while the Django API should be running on http://localhost:8000.
+
+
