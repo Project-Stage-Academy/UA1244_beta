@@ -29,6 +29,7 @@ class Location(models.Model):
     app_label = 'startups'
 
 
+
     class Meta:
         verbose_name = 'Location'
         verbose_name_plural = 'Locations'
@@ -36,6 +37,23 @@ class Location(models.Model):
     def __str__(self):
         return f"{self.city}, {self.country}"
 
+class Industry(models.Model):
+    """
+    Model representing an industry.
+
+    Attributes:
+        industry_id (UUID): Unique identifier for the industry.
+        name (str): Name of the industry.
+    """
+    industry_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = 'Industry'            
+        verbose_name_plural = 'Industries'   
+
+    def __str__(self):
+        return self.name 
 
 
 class Startup(models.Model):
@@ -61,6 +79,7 @@ class Startup(models.Model):
         description (str): A description of the startup.
         total_funding (decimal): The total amount of funding received by the startup.
         website (str): The URL to the startup's website.
+        industries (ManyToMany): A startup can belong to multiple industries.
         created_at (datetime): The date and time when the startup entry was created.
     """
     startup_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -74,6 +93,7 @@ class Startup(models.Model):
     description = models.TextField(blank=True, null=True)
     total_funding = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, default=0)
     website = models.URLField(max_length=255, blank=True, null=True)
+    industries = models.ManyToManyField(Industry, related_name='startups')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
