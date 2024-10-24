@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'investors',
     'rest_framework',
     'djoser',
-    "startups"
+    "startups",
+    'rest_framework.authtoken'
 
 ]
 
@@ -146,7 +147,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication'  
     ],
     
     'DEFAULT_PERMISSION_CLASSES': [
@@ -158,7 +161,7 @@ REST_FRAMEWORK = {
     ],
      
      'DEFAULT_THROTTLE_RATES': {
-        'anon': '10/day',
+        'anon': '100/day',
     },
 }
 
