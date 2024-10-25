@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
+    'dj_rest_auth',
+    'rest_framework.authtoken',
   
 ]
 
@@ -406,10 +408,9 @@ SOCIALACCOUNT_PROVIDERS = {
         },
         'APP': {
             'client_id': os.environ.get('GITHUB_CLIENT_ID'),  
-            'secret': os.environ.get('GITHUB_CLIENT_SECRET'),  
+            'secret': os.environ.get('GITHUB_CLIENT_SECRET'),
+            'redirect_uri': os.environ.get('GITHUB_REDIRECT_URI'),
             'key': ''
         }
     }
 }
-
-

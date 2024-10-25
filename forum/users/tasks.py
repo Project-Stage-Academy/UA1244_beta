@@ -34,3 +34,23 @@ def send_activation_email(user_id, activation_url):
         print(f"Activation email sent to {user.email}")
     except User.DoesNotExist:
         print(f"User with ID {user_id} does not exist")
+
+
+
+@shared_task
+def send_welcome_email(user_id):
+    """
+    Celery Task to send a welcome email to a user after registration.
+
+    Args:
+        user_id (int): The ID of the user to whom the email will be sent.
+    """
+    try:
+        user = User.objects.get(pk=user_id)
+        subject = "Welcome to Our Platform!"
+        message = f"Hi {user.username},\n\nWelcome to our platform! We're glad to have you with us."
+        from_email = settings.EMAIL_HOST_USER
+        recipient_list = [user.email]
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+    except User.DoesNotExist:
+        print(f"User with ID {user_id} does not exist")

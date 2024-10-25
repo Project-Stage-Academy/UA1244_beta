@@ -67,8 +67,8 @@ urlpatterns = [
     path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
 
     # allauth
-     path('accounts/', include('allauth.urls')),
-     path('api/token/oauth/', OAuthTokenObtainPairView.as_view(), name='token_obtain_oauth'),
+    path('accounts/', include('allauth.urls')),
+    path('api/token/oauth/', OAuthTokenObtainPairView.as_view(), name='token_obtain_oauth'),
 
 ]
 

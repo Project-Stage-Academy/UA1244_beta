@@ -104,13 +104,11 @@ class LoginSerializer(serializers.Serializer):
         email = data.get("email")
         password = data.get("password")
 
-        # Аутентифікація через email
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             raise AuthenticationFailed("User with this email does not exist.")
 
-        # Перевірка пароля
         if not user.check_password(password):
             raise AuthenticationFailed("Incorrect password.")
         

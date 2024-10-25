@@ -11,11 +11,15 @@ from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import NotFound
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
+from dj_rest_auth.registration.views import SocialLoginView
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from .models import User, Role
 from .serializers import UserSerializer, LoginSerializer, CustomToken
 from .permissions import IsAdmin, IsOwner, IsInvestor, IsStartup
+from .tasks import send_welcome_email
 
 
 
@@ -184,6 +188,7 @@ class ActivateAccountView(APIView):
                 user.active_role = Role.objects.get(name='unassigned')
 
             user.save()
+            send_welcome_email.delay(user.user_id)
 
             return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
 
@@ -360,20 +365,9 @@ class LoginAPIView(APIView):
             
 
 
+
 class OAuthTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
-        """
-        Handles the OAuth token exchange and user authentication.
-
-        Args:
-            request: The incoming HTTP request.
-            *args: Variable length argument list.
-            **kwargs: Arbitrary keyword arguments.
-
-        Returns:
-            Response: A response containing the access and refresh tokens, 
-            or an error message if the exchange fails.
-        """
         provider = request.data.get('provider')
         code = request.data.get('code')
 
@@ -385,6 +379,12 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
             user = self.get_or_create_user(user_data)
 
             refresh = RefreshToken.for_user(user)
+
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+                send_welcome_email.delay(user.id)
+
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
@@ -396,15 +396,6 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
             return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_or_create_user(self, user_data):
-        """
-        Retrieves or creates a user based on the provided user data.
-
-        Args:
-            user_data: A dictionary containing user information.
-
-        Returns:
-            User: The created or retrieved user object.
-        """
         email = user_data.get('email')
 
         if not email:
@@ -414,6 +405,7 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
 
         if created:
             user.username = user_data.get('username', email.split('@')[0])
+            user.is_active = False  
             user.save()
 
         return user
@@ -446,7 +438,8 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
                 code,
                 token_url=GITHUB_TOKEN_URL,
                 client_id=os.environ.get('GITHUB_CLIENT_ID'),
-                client_secret=os.environ.get('GITHUB_CLIENT_SECRET')
+                client_secret=os.environ.get('GITHUB_CLIENT_SECRET'),
+                redirect_uri=os.environ.get('GITHUB_REDIRECT_URI')
             )
             user_data = self.get_user_profile(access_token, GITHUB_USER_URL, headers={'Authorization': f'token {access_token}'})
         else:
