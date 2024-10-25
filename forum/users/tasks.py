@@ -1,26 +1,31 @@
+import logging
+
 from celery import shared_task
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.mail import send_mail
+
 from users.models import User
+
+
+logger = logging.getLogger(__name__)
+
 
 @shared_task
 def send_activation_email(user_id, activation_url):
     """
-    Task to send an account activation email to a user.
+    Sends an activation email to the user with the specified user ID.
 
-    This function is a shared Celery task that retrieves the user by their `user_id`, 
-    constructs an activation email, and sends it to the user's registered email address.
+    This function retrieves the user based on the provided user_id,
+    then sends an activation email containing a link to activate the account.
+    If the user does not exist, it logs an error.
 
     Args:
-        user_id (int): The ID of the user to whom the activation email will be sent.
-        activation_url (str): The URL that the user must click to activate their account.
+        user_id (str): The UUID of the user to send the activation email to.
+        activation_url (str): The URL that the user can click to activate their account.
 
-    Returns:
-        None. Prints a success message if the email is sent successfully or an error message 
-        if the user does not exist.
-
-    Raises:
-        User.DoesNotExist: If the user with the given `user_id` does not exist in the database.
+    Logs:
+        Sends an info log if the email was sent successfully,
+        or an error log if the user is not found or the email fails to send.
     """
     try:
         user = User.objects.get(user_id=user_id)
@@ -31,26 +36,37 @@ def send_activation_email(user_id, activation_url):
             recipient_list=[user.email],
             fail_silently=False,  
         )
-        print(f"Activation email sent to {user.email}")
+        logger.info(f"Activation email sent to {user.email}")
     except User.DoesNotExist:
-        print(f"User with ID {user_id} does not exist")
-
-
+        logger.error(f"User with ID {user_id} does not exist")
+    except Exception as e:
+        logger.error(f"Failed to send activation email: {e}")
 
 @shared_task
 def send_welcome_email(user_id):
     """
-    Celery Task to send a welcome email to a user after registration.
+    Sends a welcome email to the user with the specified user ID.
+
+    This function retrieves the user based on the provided user_id,
+    then sends a welcome email to greet them on joining the platform.
+    If the user does not exist, it logs an error.
 
     Args:
-        user_id (int): The ID of the user to whom the email will be sent.
+        user_id (str): The UUID of the user to send the welcome email to.
+
+    Logs:
+        Sends an info log if the email was sent successfully,
+        or an error log if the user is not found or the email fails to send.
     """
     try:
-        user = User.objects.get(pk=user_id)
+        user = User.objects.get(user_id=user_id)
         subject = "Welcome to Our Platform!"
         message = f"Hi {user.username},\n\nWelcome to our platform! We're glad to have you with us."
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [user.email]
         send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        logger.info(f"Welcome email sent to {user.email}")
     except User.DoesNotExist:
-        print(f"User with ID {user_id} does not exist")
+        logger.error(f"User with ID {user_id} does not exist")
+    except Exception as e:
+        logger.error(f"Failed to send welcome email: {e}")

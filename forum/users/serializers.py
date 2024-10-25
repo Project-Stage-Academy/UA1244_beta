@@ -1,12 +1,13 @@
-from rest_framework import serializers
-from .models import User, Role
-from django.contrib.auth.password_validation import validate_password
-from django.conf import settings
-from django.urls import reverse
-from rest_framework_simplejwt.tokens import AccessToken
 from datetime import timedelta
-from .tasks import send_activation_email
+from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.urls import reverse
+from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.tokens import AccessToken
+from .models import User, Role
+from .tasks import send_activation_email
+
 
 
 

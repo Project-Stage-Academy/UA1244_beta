@@ -92,6 +92,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'forum.urls'
@@ -414,3 +415,8 @@ SOCIALACCOUNT_PROVIDERS = {
         }
     }
 }
+
+
+SOCIALACCOUNT_AUTO_SIGNUP = True
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_ADAPTER = 'users.adapter.CustomSocialAccountAdapter'

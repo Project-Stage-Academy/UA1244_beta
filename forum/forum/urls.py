@@ -69,6 +69,7 @@ urlpatterns = [
     # allauth
     path('accounts/', include('allauth.urls')),
     path('api/token/oauth/', OAuthTokenObtainPairView.as_view(), name='token_obtain_oauth'),
+    
 
 ]
 
