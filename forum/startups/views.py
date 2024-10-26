@@ -1,11 +1,79 @@
 from rest_framework import generics, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Startup
+from investors.models import Investor, InvestorFollow
 from .serializers import StartupSerializer
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class SavedStartupsListAPIView(APIView):
+    """
+    API endpoint for listing all startups an investor has saved.
+
+    Permissions:
+        - Requires the user to be authenticated.
+
+    Methods:
+        - GET: Retrieves and returns a list of startups that the authenticated investor has saved.
+        
+    Workflow:
+        1. The view first retrieves the `Investor` instance associated with the authenticated user.
+        2. It then filters startups linked to the investor in the `InvestorFollow` model.
+        3. The filtered startups are serialized and returned as a JSON response.
+        
+    Responses:
+        - 200 OK: Returns a list of saved startups if the investor is found.
+        - 404 Not Found: Returns an error message if the investor does not exist.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            investor = Investor.objects.get(user=request.user)
+            saved_startups = Startup.objects.filter(startup_investors__investor=investor)
+            serializer = StartupSerializer(saved_startups, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Investor.DoesNotExist:
+            return Response({"error": "Investor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UnfollowStartupAPIView(APIView):
+    """
+    API endpoint for unfollowing (or removing) a saved startup for an investor.
+
+    Permissions:
+        - Requires the user to be authenticated.
+
+    Methods:
+        - DELETE: Allows an investor to unfollow a specific startup by ID.
+        
+    Workflow:
+        1. The view first retrieves the `Investor` instance associated with the authenticated user.
+        2. It checks for the existence of the startup in the investor’s saved list.
+        3. If found, the saved entry is deleted from the `InvestorFollow` model.
+        
+    Responses:
+        - 204 No Content: Indicates successful unfollowing.
+        - 404 Not Found: Returns an error if the investor or follow record does not exist.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, startup_id):
+        try:
+            investor = Investor.objects.get(user=request.user)
+            follow = InvestorFollow.objects.get(investor=investor, startup_id=startup_id)
+            follow.delete()
+            return Response({"message": "Unfollowed the startup successfully."}, status=status.HTTP_204_NO_CONTENT)
+        except Investor.DoesNotExist:
+            return Response({"error": "Investor not found."}, status=status.HTTP_404_NOT_FOUND)
+        except InvestorFollow.DoesNotExist:
+            return Response({"error": "Startup not followed."}, status=status.HTTP_404_NOT_FOUND)
 
 
 def create_error_response(message, status_code):
