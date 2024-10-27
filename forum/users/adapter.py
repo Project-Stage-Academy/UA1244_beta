@@ -4,6 +4,7 @@ from .tasks import send_welcome_email
 
 User = get_user_model()
 
+
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """
     Custom adapter for handling the saving of users authenticated through social accounts.
@@ -29,12 +30,12 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         Returns:
             User: The saved user instance with an activated status.
         """
-        user = super().save_user(request, sociallogin, form)
-        user.is_active = True
-        user.save()
-        
-        # Convert user_id to string to pass to Celery task
-        user_id = str(user.user_id)
-        send_welcome_email.apply_async(args=[user_id])
-        
+        try:
+            user = super().save_user(request, sociallogin, form)
+            user.is_active = True
+            user.save()
+
+            send_welcome_email.apply_async(args=[user.user_id])
+        except Exception:
+            raise  
         return user

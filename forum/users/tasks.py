@@ -3,7 +3,7 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
-
+from django.template.loader import render_to_string
 from users.models import User
 
 
@@ -42,6 +42,9 @@ def send_activation_email(user_id, activation_url):
     except Exception as e:
         logger.error(f"Failed to send activation email: {e}")
 
+
+
+
 @shared_task
 def send_welcome_email(user_id):
     """
@@ -52,18 +55,20 @@ def send_welcome_email(user_id):
     If the user does not exist, it logs an error.
 
     Args:
-        user_id (str): The UUID of the user to send the welcome email to.
+        user_id (UUID): The UUID of the user to send the welcome email to.
 
     Logs:
         Sends an info log if the email was sent successfully,
         or an error log if the user is not found or the email fails to send.
     """
     try:
-        user = User.objects.get(user_id=user_id)
+        user = User.objects.select_related().get(user_id=user_id)
+
         subject = "Welcome to Our Platform!"
-        message = f"Hi {user.username},\n\nWelcome to our platform! We're glad to have you with us."
+        message = render_to_string('emails/welcome_email.html', {'username': user.username})
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [user.email]
+
         send_mail(subject, message, from_email, recipient_list, fail_silently=False)
         logger.info(f"Welcome email sent to {user.email}")
     except User.DoesNotExist:
