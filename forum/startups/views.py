@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from .models import Startup
 from investors.models import Investor, InvestorFollow
 from .serializers import StartupSerializer
@@ -10,7 +11,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class SavedStartupsListAPIView(APIView):
+class BaseInvestorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_investor(self, request):
+        try:
+            return Investor.objects.get(user=request.user)
+        except Investor.DoesNotExist:
+            logger.warning(f"Invesotor not found for user ID {request.user.id}")
+            return None
+
+
+class SavedStartupsListAPIView(BaseInvestorView):
     """
     API endpoint for listing all startups an investor has saved.
 
@@ -30,19 +42,23 @@ class SavedStartupsListAPIView(APIView):
         - 404 Not Found: Returns an error message if the investor does not exist.
     """
 
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        try:
-            investor = Investor.objects.get(user=request.user)
-            saved_startups = Startup.objects.filter(startup_investors__investor=investor)
-            serializer = StartupSerializer(saved_startups, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Investor.DoesNotExist:
-            return Response({"error": "Investor not found."}, status=status.HTTP_404_NOT_FOUND)
+        investor = self.get_investor(request)
+        if investor is None:
+            return Response({"error": "Invesotor not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        paginator = PageNumberPagination()
+        paginator.page_size = 10
+        
+        saved_startups = Startup.objects.prefetch_related('startup_investors').filter(startup_investors__investor=investor)
+        paginated_startups = paginator.paginate_queryset(saved_startups, request)
+        serializer = StartupSerializer(paginated_startups, many=True)
+
+        logger.info(f"Returned saved startups for investor ID {investor.investor_id}")
+        return paginator.get_paginated_response(serializer.data)
 
 
-class UnfollowStartupAPIView(APIView):
+class UnfollowStartupAPIView(BaseInvestorView):
     """
     API endpoint for unfollowing (or removing) a saved startup for an investor.
 
@@ -62,17 +78,18 @@ class UnfollowStartupAPIView(APIView):
         - 404 Not Found: Returns an error if the investor or follow record does not exist.
     """
 
-    permission_classes = [IsAuthenticated]
-
     def delete(self, request, startup_id):
+        investor = self.get_investor(request)
+        if investor is None:
+            return Response({"error": "Investor not found."}, status=status.HTTP_404_NOT_FOUND)
+        
         try:
-            investor = Investor.objects.get(user=request.user)
             follow = InvestorFollow.objects.get(investor=investor, startup_id=startup_id)
             follow.delete()
-            return Response({"message": "Unfollowed the startup successfully."}, status=status.HTTP_204_NO_CONTENT)
-        except Investor.DoesNotExist:
-            return Response({"error": "Investor not found."}, status=status.HTTP_404_NOT_FOUND)
+            logger.info(f"Investor ID {investor.investor_id} unfollowed startup ID {startup_id}")
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except InvestorFollow.DoesNotExist:
+            logger.warning(f"Startup ID {startup_id} not followed by investor ID {investor.investor_id}")
             return Response({"error": "Startup not followed."}, status=status.HTTP_404_NOT_FOUND)
 
 
