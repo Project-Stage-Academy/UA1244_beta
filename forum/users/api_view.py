@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 import requests
+import logging
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -16,8 +17,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from .models import User, Role
 from .serializers import UserSerializer, LoginSerializer, CustomToken
 from .permissions import IsAdmin, IsOwner, IsInvestor, IsStartup
+from .tasks import send_welcome_email
 
-
+logger = logging.getLogger(__name__)
 
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"
 GITHUB_USER_URL = "https://api.github.com/user"
@@ -184,6 +186,7 @@ class ActivateAccountView(APIView):
                 user.active_role = Role.objects.get(name='unassigned')
 
             user.save()
+            send_welcome_email.delay(user.user_id)
 
             return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
 
@@ -361,18 +364,24 @@ class LoginAPIView(APIView):
 
 
 class OAuthTokenObtainPairView(TokenObtainPairView):
+    """
+    Custom view for obtaining JWT tokens using OAuth provider credentials.
+
+    This view handles OAuth login by exchanging an authorization code from a provider
+    (such as Google or GitHub) for an access token, retrieving user profile data, and
+    creating or fetching a corresponding user in the local database.
+    """
+
     def post(self, request, *args, **kwargs):
         """
-        Handles the OAuth token exchange and user authentication.
+        Handle OAuth login, exchanging the authorization code for an access token,
+        and then issuing JWT tokens.
 
         Args:
-            request: The incoming HTTP request.
-            *args: Variable length argument list.
-            **kwargs: Arbitrary keyword arguments.
+            request: HTTP request containing 'provider' and 'code' in the body.
 
         Returns:
-            Response: A response containing the access and refresh tokens, 
-            or an error message if the exchange fails.
+            Response with JWT tokens if successful; error message otherwise.
         """
         provider = request.data.get('provider')
         code = request.data.get('code')
@@ -385,25 +394,33 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
             user = self.get_or_create_user(user_data)
 
             refresh = RefreshToken.for_user(user)
+
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+                logger.info(f"User {user.email} activated.")
+
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             })
 
         except ValueError as e:
+            logger.error(f"Value error during token obtain: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.error(f"Unexpected error: {e}")
             return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_or_create_user(self, user_data):
         """
-        Retrieves or creates a user based on the provided user data.
+        Retrieve an existing user or create a new one based on OAuth user data.
 
         Args:
-            user_data: A dictionary containing user information.
+            user_data (dict): User profile information obtained from the OAuth provider.
 
         Returns:
-            User: The created or retrieved user object.
+            User instance for the authenticated or newly created user.
         """
         email = user_data.get('email')
 
@@ -414,23 +431,21 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
 
         if created:
             user.username = user_data.get('username', email.split('@')[0])
+            user.is_active = False
             user.save()
 
         return user
 
     def exchange_code_and_get_user_profile(self, code, provider):
         """
-        Exchanges the provided authorization code for an access token and retrieves the user profile.
+        Exchanges the authorization code for an access token and retrieves user profile data.
 
         Args:
-            code: The authorization code.
-            provider: The OAuth provider ('google' or 'github').
+            code (str): Authorization code received from the OAuth provider.
+            provider (str): Name of the OAuth provider (e.g., 'google', 'github').
 
         Returns:
-            tuple: The access token and user profile data.
-
-        Raises:
-            ValueError: If the provider is unsupported or the token exchange fails.
+            Tuple containing the access token and user profile data as a dictionary.
         """
         if provider == 'google':
             access_token = self.exchange_code_for_token(
@@ -446,7 +461,8 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
                 code,
                 token_url=GITHUB_TOKEN_URL,
                 client_id=os.environ.get('GITHUB_CLIENT_ID'),
-                client_secret=os.environ.get('GITHUB_CLIENT_SECRET')
+                client_secret=os.environ.get('GITHUB_CLIENT_SECRET'),
+                redirect_uri=os.environ.get('GITHUB_REDIRECT_URI')
             )
             user_data = self.get_user_profile(access_token, GITHUB_USER_URL, headers={'Authorization': f'token {access_token}'})
         else:
@@ -456,20 +472,20 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
 
     def exchange_code_for_token(self, code, token_url, client_id, client_secret, redirect_uri=None):
         """
-        Exchanges the authorization code for an access token.
+        Exchanges an authorization code for an access token from the OAuth provider.
 
         Args:
-            code: The authorization code.
-            token_url: The URL to exchange the code for an access token.
-            client_id: OAuth client ID.
-            client_secret: OAuth client secret.
-            redirect_uri: Optional redirect URI (required for Google).
+            code (str): Authorization code provided by the OAuth provider.
+            token_url (str): Token endpoint URL for the provider.
+            client_id (str): Client ID for the OAuth application.
+            client_secret (str): Client secret for the OAuth application.
+            redirect_uri (str, optional): Redirect URI registered with the provider.
 
         Returns:
-            str: The access token.
+            str: Access token received from the OAuth provider.
 
         Raises:
-            ValueError: If the token exchange fails.
+            ValueError: If the access token is not found in the response.
         """
         data = {
             'client_id': client_id,
@@ -494,12 +510,12 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
         Retrieves the user profile information from the OAuth provider.
 
         Args:
-            access_token: The access token.
-            userinfo_url: The URL to get user info.
-            headers: Optional headers for the request.
+            access_token (str): Access token for authenticating the request.
+            userinfo_url (str): URL for retrieving user profile information.
+            headers (dict, optional): Additional headers to include in the request.
 
         Returns:
-            dict: The user profile data.
+            dict: User profile data obtained from the provider's userinfo endpoint.
         """
         headers = headers or {}
         params = {'access_token': access_token}
