@@ -57,7 +57,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'notifications.apps.NotificationsConfig',
     'corsheaders',
-    'django.contrib.sites',  
+    'django.contrib.sites',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -65,21 +65,10 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     'dj_rest_auth',
     'rest_framework.authtoken',
-  
+
 ]
 
-
 AUTH_USER_MODEL = 'users.User'
-
-
-
-ASGI_APPLICATION = 'forum.asgi.application'
-
-CHANNEL_LAYERS = {
-        'default':{
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-            },
-        }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -92,7 +81,6 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-    
 ]
 
 ROOT_URLCONF = 'forum.urls'
@@ -319,12 +307,12 @@ LOGGING = {
         },
         'file': {
             'level': os.environ.get("LOG_LEVEL", "DEBUG"),
-            'class': 'logging.handlers.RotatingFileHandler',  
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': LOG_FILE_PATH,
-            'maxBytes': 1024 * 1024,  
-            'backupCount': 3,  
+            'maxBytes': 1024 * 1024,
+            'backupCount': 3,
             'formatter': 'verbose',
-            'delay': True,  
+            'delay': True,
         },
     },
     'loggers': {
@@ -367,13 +355,20 @@ LOGGING = {
 ASGI_APPLICATION = 'forum.asgi.application'
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
-    },
-}
+        'default':{
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            },
+        }
+
+# Parametrize for local vs prod. In local let's use in memory channels.
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }
 
 
 # CORS FOR REACT
@@ -383,7 +378,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',  
+    'http://localhost:3000',
 ]
 
 
@@ -408,7 +403,7 @@ SOCIALACCOUNT_PROVIDERS = {
             'access_type': 'online',
         },
         'APP': {
-            'client_id': os.environ.get('GITHUB_CLIENT_ID'),  
+            'client_id': os.environ.get('GITHUB_CLIENT_ID'),
             'secret': os.environ.get('GITHUB_CLIENT_SECRET'),
             'redirect_uri': os.environ.get('GITHUB_REDIRECT_URI'),
             'key': ''
