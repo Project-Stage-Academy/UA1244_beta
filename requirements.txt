@@ -56,4 +56,9 @@ msgpack==1.1.0
 aiosmtplib==3.0.2
 pymongo==4.10.1
 mongoengine==0.29.1
+django-simple-history==3.7.0
 django-cors-headers==4.5.0
+django-allauth==65.0.2
+dj-rest-auth==6.0.0
+
+

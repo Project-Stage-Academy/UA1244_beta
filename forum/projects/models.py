@@ -94,14 +94,14 @@ class Project(models.Model):
         return funded_amount_by_now
 
 
-def clean(self):
-    if self.actual_finish_date and self.planned_start_date:
-        if self.actual_finish_date < self.planned_start_date:
-            raise ValidationError(_('Actual finish date cannot be earlier than planned start date.'))
+    def clean(self):
+        if self.actual_finish_date and self.planned_start_date:
+            if self.actual_finish_date < self.planned_start_date:
+                raise ValidationError(_('Actual finish date cannot be earlier than planned start date.'))
 
 
-def __str__(self):
-    return self.title
+    def __str__(self):
+        return self.title
 
 
 class Subscription(models.Model):
@@ -144,13 +144,18 @@ class Subscription(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['project_id', 'investor_id'], name='unique_project_investor')
+            models.UniqueConstraint(fields=['project_id', 'investor_id'], name='unique_project_investor'),
+            models.CheckConstraint(
+                check=models.Q(investment_share__gte=0, investment_share__lte=100),
+                name='check_investment_share'
+            ),
         ]
 
     def clean(self):
         super().clean()
         if self.funded_amount < 0:
             raise ValidationError(_('Funded amount must be a positive number.'))
+
 
         if self.project_id:
             total_share = self.project_id.subscribed_projects.aggregate(models.Sum('investment_share'))[
