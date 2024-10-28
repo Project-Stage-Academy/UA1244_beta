@@ -1,4 +1,5 @@
 import json
+from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 import logging
 import urllib
 
@@ -66,3 +67,40 @@ class CommunicationConsumer(AsyncWebsocketConsumer):
         logger.info(f"Received message: {message}")
 
         await self.send(text_data=json.dumps({"message": message}))
+
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.initiator_user_id = self.scope['user'].id
+        self.user_id = self.scope['url_route']['kwargs']['user_id']
+        self.users_group_name = f'{self.initiator_user_id}_{self.user_id}'
+
+        # Join the room group
+        await self.channel_layer.group_add(
+            self.users_group_name,
+            self.channel_name
+        )
+
+        await self.accept()  # Accept the WebSocket connection
+
+    async def disconnect(self, close_code):
+        # Leave the room group
+        await self.channel_layer.group_discard(
+            self.users_group_name,
+            self.channel_name
+        )
+
+    async def send_notification(self, event):
+        """
+        Receive notification from the channel layer and send it to WebSocket.
+        """
+        notification = event['notification']
+
+        # Send the notification to WebSocket
+        await self.send(text_data=json.dumps({
+            'user': notification['user'],
+            'message': notification['message'],
+            'is_read': notification['is_read'],
+        }))
+
+

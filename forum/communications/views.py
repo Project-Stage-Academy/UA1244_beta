@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 
 from communications.models import Room, Message
 from communications.serializers import RoomSerializer, MessageSerializer
+from communications.serializers import RoomSerializer
+from communications.signals import send_notification_via_channels
 from users.models import User
 
 
@@ -96,6 +98,8 @@ class MessageApiView(APIView):
             async_to_sync(channel_layer.group_send)(
                 f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
             )
+
+            send_notification_via_channels(user, message, True)
 
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 

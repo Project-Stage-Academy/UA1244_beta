@@ -2,13 +2,9 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-from django.urls import re_path
 
-from communications.consumers import CommunicationConsumer
-from projects.routing import websocket_urlpatterns
-from django.urls import path
-from communications.consumers import CommunicationConsumer
-
+from projects.routing import websocket_urlpatterns as projects_websocket_urlpatterns
+from communications.routing import websocket_urlpatterns as communications_websocket_urlpatterns
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'forum.settings')
 
@@ -30,9 +26,9 @@ application = ProtocolTypeRouter({
     "websocket": AuthMiddlewareStack(
         URLRouter(
             [
-                *websocket_urlpatterns,
-                re_path(r"ws/communications/(?P<room_id>\w+)/$", CommunicationConsumer.as_asgi())
+                *projects_websocket_urlpatterns,
+                *communications_websocket_urlpatterns
             ]
         )
-    )
+    ),
 })
