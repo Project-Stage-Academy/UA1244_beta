@@ -1,17 +1,17 @@
+import logging
+import channels.layers
+
+from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-import channels.layers
-from asgiref.sync import async_to_sync
-
 from communications.models import Room, Message
 from communications.serializers import RoomSerializer, MessageSerializer
 from users.models import User
 
-import logging
 
 logger = logging.getLogger(__name__)
 
