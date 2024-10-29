@@ -1,8 +1,8 @@
 from django.contrib import admin
 from projects.models import Project
-from .models import Startup
+from .models import Startup, Industry
 
-class IndustryInline(admin.TabularInline):
+class StartupIndustryInline(admin.TabularInline):
     model = Startup.industries.through
     extra = 1
 class ProjectInline(admin.TabularInline):
@@ -27,20 +27,24 @@ class StartupAdmin(admin.ModelAdmin):
     inlines (list): Specifies inline models to be managed within the Startup admin form.
     """
     list_display = (
-        'user', 'startup_id', 'company_name', 'required_funding', 
-        'funding_stage', 'location', 'description', 
-        'total_funding', 'created_at'
+        'user', 'company_name', 'required_funding', 
+        'funding_stage', 'location', 'total_funding', 'startup_id'
     )
     list_filter = (
-        'startup_id', 'company_name',
-        'funding_stage', 'location', 'created_at'
+        'company_name', 'funding_stage', 'location',
     )
     search_fields = (
         'company_name', 'funding_stage', 'location'
     )
-    readonly_fields = ('created_at',)  
+    ordering = ('-created_at',)
+    readonly_fields = ('startup_id', 'created_at')
     fieldsets = [('Main', {'fields': ['user', 'company_name', 'description', 'funding_stage']}),
                  ('Info', {'fields': ['required_funding', 'location', 'total_funding', 'created_at']})]
-    inlines = [IndustryInline, ProjectInline]
+    inlines = [StartupIndustryInline, ProjectInline]
 
 admin.site.register(Startup, StartupAdmin)
+
+@admin.register(Industry)
+class IndustryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)

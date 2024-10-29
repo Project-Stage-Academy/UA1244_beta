@@ -15,15 +15,19 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.http import JsonResponse
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
 )
+
 from users.api_view import ActivateAccountView, SignOutView
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
+
 
 
 urlpatterns = [
@@ -37,8 +41,11 @@ urlpatterns = [
     path("communications/", include("communications.urls")),
     path("dashboard/", include("dashboard.urls")),
     path("investors/", include("investors.urls")),
-    #path("startups/", include("startups.urls")),
-    path('api/startups/', include('startups.urls')),
+    path('', index, name='index'),
+    path("api/startups/", include("startups.urls")),
+    path("api/notifications/", include("notifications.urls")),
+
+
 
     # JWT Token URLs
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
@@ -59,6 +66,9 @@ urlpatterns = [
     path('reset_password_sent/', auth_views.PasswordResetDoneView.as_view(), name ='password_reset_done'),
     path('reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
     path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
+
+    # allauth
+     path('accounts/', include('allauth.urls')),
 ]
 
 
