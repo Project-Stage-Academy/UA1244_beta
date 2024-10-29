@@ -144,6 +144,33 @@ pylint --load-plugins pylint_django [your_django_app_folder]
 cd forum && python manage.py createsuperuser
 ```
 
+## Communication
+### Get token
+http://localhost:8000/api/token/
+
+### Create conversation
+```shell
+curl --location 'http://127.0.0.1:8000/api/conversations/' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzI5NTQxOTI3LCJpYXQiOjE3Mjk1NDEwMjcsImp0aSI6IjI1MzM0Mjc1MDYzNDQ0MDU4MDkxNjFmOWNlNzBkMjQ0IiwidXNlcl9pZCI6IjcyZjgwZGEyLTU2ZDMtNDZhNS05NTBiLThmM2VkMzU1ZjUxZCJ9.nBjpzkWJaM_PIW7aY1Zw-7JlmldLjO44x2yQpvSmmd4' \
+--data '{
+    "participants": ["fc22603d-0f5d-4ac2-8964-b073e783abc8"]
+}'
+```
+
+### Send message
+```shell
+curl --location 'http://127.0.0.1:8000/api/conversations/6712520301fa3c40d55e0683/messages' \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzI5NTQxOTI3LCJpYXQiOjE3Mjk1NDEwMjcsImp0aSI6IjI1MzM0Mjc1MDYzNDQ0MDU4MDkxNjFmOWNlNzBkMjQ0IiwidXNlcl9pZCI6IjcyZjgwZGEyLTU2ZDMtNDZhNS05NTBiLThmM2VkMzU1ZjUxZCJ9.nBjpzkWJaM_PIW7aY1Zw-7JlmldLjO44x2yQpvSmmd4'
+```
+
+### Subscribe to messages
+```
+ws://127.0.0.1:8000/ws/communications/6712520301fa3c40d55e0683/
+```
+
+
+## Frontend
 Instructions for Installing React, Dependencies, and Running the React Server
 
 Navigate to the Frontend Directory:First, ensure you are inside the frontend directory where the React project is located: 

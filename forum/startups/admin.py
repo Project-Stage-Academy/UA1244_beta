@@ -1,6 +1,7 @@
 from django.contrib import admin
+
 from projects.models import Project
-from .models import Startup, Industry
+from .models import Startup, Industry, Location
 
 class StartupIndustryInline(admin.TabularInline):
     model = Startup.industries.through
@@ -18,7 +19,7 @@ class StartupAdmin(admin.ModelAdmin):
     for efficient record management.
     Allows searching startups by company name, funding stage, and location for quick access to records.
     Incorporates inline management for industries and projects associated with each startup.
-
+    
     Attributes:
     list_display (tuple): Specifies the fields to be displayed in the list view.
     list_filter (tuple): Defines the fields available for filtering in the admin list view.
@@ -48,3 +49,27 @@ admin.site.register(Startup, StartupAdmin)
 class IndustryAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Location model.
+
+    Features:
+        - `list_display`: Specifies fields to display in the list view of the admin panel.
+        - `search_fields`: Allows admin users to search for specific entries by city, country, or city code.
+        - `ordering`: Sets the default ordering of entries in the list view by city name.
+        - `list_filter`: Adds a filter sidebar to filter locations by country.
+        
+    Attributes:
+        - list_display (tuple): Fields shown in the list view, providing quick reference to key information.
+        - search_fields (tuple): Fields used for search functionality in the admin panel.
+        - ordering (tuple): Default ordering of entries when displayed in the list view.
+        - list_filter (tuple): Adds filter options in the admin sidebar for filtering by the selected field(s).
+    """
+    
+    list_display = ('location_id', 'city', 'country', 'city_code')
+    search_fields = ('city', 'country', 'city_code')
+    ordering = ('city',)
+    list_filter = ('country',)
+

@@ -1,13 +1,17 @@
+import logging
+import channels.layers
+
+from asgiref.sync import async_to_sync
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from communications.models import Room, Message
-from communications.serializers import RoomSerializer
+from communications.serializers import RoomSerializer, MessageSerializer
 from users.models import User
 
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +82,20 @@ class MessageApiView(APIView):
                                 status=status.HTTP_400_BAD_REQUEST)
 
             user_id = request.user.user_id
-            user = User.objects.get_object_or_404(user_id=user_id)
+
+            user = get_object_or_404(User, user_id=user_id)
 
             text = request.data.get("text")
 
             message = Message(sender={"user_id": str(user.user_id), "username": user.username}, message = text)
 
             Room.objects(id=conversation_id).update_one(push__messages=message)
+
+            # Send websocket message
+            channel_layer = channels.layers.get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
+            )
 
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 
