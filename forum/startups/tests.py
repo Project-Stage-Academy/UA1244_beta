@@ -6,7 +6,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from rest_framework import status
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
 from .models import Startup, Industry, Location, FundingStage
@@ -15,7 +14,31 @@ from users.models import User
 
 User = get_user_model()
 
-class StartUpProfileAPITest(APITestCase):
+class StartupTestBase:
+    """
+    Initializes test data, including a user, industry, and location.
+    """
+    def create_common_test_data(self):
+        user = User.objects.create_user(
+            email='defaultuser@example.com',
+            password='password123',
+            username='defaultuser',
+            first_name='Default',
+            last_name='User',
+        )
+        user.is_active = True
+        user.save()
+
+        industry = Industry.objects.create(name='Tech')
+        location = Location.objects.create(
+            city='San Francisco',
+            country='USA',
+            city_code='SF'
+        )
+
+        return user, industry, location
+
+class StartupProfileAPITest(APITestCase, StartupTestBase):
 
     """
     Unit tests for startup profile management functionality in the API.
@@ -24,7 +47,7 @@ class StartUpProfileAPITest(APITestCase):
     to simulate API requests.
 
     Methods:
-        setUp(): Initializes test data, including a user, industry, location, and API credentials.
+        setUp(): Initializes test data and API credentials.
         test_create_profile(): Tests the creation of a valid startup profile via an authenticated 
         POST request.
         test_create_profile_unauthorized(): Tests that creating a profile without authentication 
@@ -36,31 +59,13 @@ class StartUpProfileAPITest(APITestCase):
     """
 
     def setUp(self):
-        self.user = User.objects.create_user(
-            email='defaultuser@example.com',
-            password='password123',
-            username='defaultuser',
-            first_name='Default',
-            last_name='User',
-        )
 
-        self.industry1 = Industry.objects.create(name='Tech')
+        self.user, self.industry1, self.location = self.create_common_test_data()
+        self.startup_list_url = reverse('startup-list')
 
-        self.location = Location.objects.create(
-            city='San Francisco',
-            country='USA',
-            city_code='SF'
-        )
-
-        self.user.is_active=True
-        self.user.save()
-
-        self.token = Token.objects.create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token.key)
-
+        self.client.force_authenticate(user=self.user)
 
     def test_create_profile(self):
-        url = reverse('startup-list')
         data = {
             "user": self.user.pk,
             "company_name": "Test Company2",
@@ -77,12 +82,11 @@ class StartUpProfileAPITest(APITestCase):
             "projects": None      
         }
 
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(self.startup_list_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_create_profile_unauthorized(self):
-        url = reverse('startup-list')
-        self.client.credentials()
+        self.client.force_authenticate(user=None)
         data = {
             "user": self.user.pk,
             "company_name": "Test Company3",
@@ -99,14 +103,13 @@ class StartUpProfileAPITest(APITestCase):
             "projects": None      
         }
 
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(self.startup_list_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_invalid_profile(self):
-        url = reverse('startup-list')
         data = {
             "user": self.user.pk,
-            "company_name": "",
+            "company_name": None,
             "description": "Test description",
             "website": "http://example.com",
             "required_funding": 100000.00,              
@@ -115,18 +118,20 @@ class StartUpProfileAPITest(APITestCase):
             "location": self.location.location_id,                
             "industries": [self.industry1.industry_id],  
             "company_logo": None,                          
-            "total_funding": 50000000.00,                  
+            "total_funding": 50000.00,                  
             "created_at": timezone.now(),                  
             "projects": None      
         }
-
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(self.startup_list_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+        self.assertIn("company_name", response.data)
+        self.assertEqual(response.data["company_name"], ["This field may not be null."])
+
+        self.assertIn("number_of_employees", response.data)
+        self.assertEqual(response.data["number_of_employees"], ["Ensure this value is greater than or equal to 0."])
 
     def test_update_profile(self):
-
-        create_url = reverse('startup-list')
         data = {
             "user": self.user.pk,
             "company_name": "Test Company4",
@@ -143,9 +148,10 @@ class StartUpProfileAPITest(APITestCase):
             "projects": None
         }
 
-        response = self.client.post(create_url, data, format='json')
+        response = self.client.post(self.startup_list_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+        self.assertIn('startup_id', response.data, "Response does not contain 'startup_id'.")
         startup_id = response.data['startup_id'] 
         update_url = reverse('startup-detail', kwargs={'pk': startup_id}) 
 
@@ -176,7 +182,7 @@ class StartUpProfileAPITest(APITestCase):
         self.assertEqual(updated_startup.number_of_employees, 15)
         self.assertEqual(updated_startup.total_funding, Decimal("70000.00"))
 
-class StartupProfileTest(TestCase):
+class StartupProfileTest(TestCase, StartupTestBase):
 
     """
     Unit tests for startup profile creation functionality.
@@ -184,25 +190,13 @@ class StartupProfileTest(TestCase):
     using Django's TestCase to simulate database operations.
     
     Methods:
-        setUp(): Initializes test data, including a user, industry, and location.
+        setUp(): Initializes test data.
         test_profile_creation(): Tests startup profile creation with valid data, including
         assigning industries and verifying the correct user and company name.
     """
-
     def setUp(self):
-        self.user = User.objects.create_user(
-            email='defaultuser@example.com',
-            password='password123',
-            username='defaultuser',
-            first_name='Default',
-            last_name='User'
-        )
-        self.industry1 = Industry.objects.create(name='Tech') 
-        self.location = Location.objects.create(
-            city='San Francisco',
-            country='USA',
-            city_code='SF'
-        )
+        self.user, self.industry1, self.location = self.create_common_test_data()
+        self.startup_list_url = reverse('startup-list')
 
     def test_profile_creation(self):
         profile = Startup.objects.create(

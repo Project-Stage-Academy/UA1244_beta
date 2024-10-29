@@ -37,6 +37,23 @@ class Location(models.Model):
     def __str__(self):
         return f"{self.city}, {self.country}"
 
+class CaseInsensitiveField(models.CharField):
+    """
+    A case-insensitive CharField that stores values in lowercase.
+    """
+
+    def __init__(self, *args, **kwargs):
+        if 'max_length' not in kwargs:
+            raise ValueError("max_length is required")
+        super().__init__(*args, **kwargs)
+
+    def pre_save(self, model_instance, add):
+        value = getattr(model_instance, self.attname)
+        return value.lower() if value else value
+
+    def get_prep_value(self, value):
+        return value.lower() if value else value
+    
 class Industry(models.Model):
     """
     Model representing an industry.
@@ -46,11 +63,12 @@ class Industry(models.Model):
         name (str): Name of the industry.
     """
     industry_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True)
+    name = CaseInsensitiveField(max_length=100, unique=True)
 
     class Meta:
         verbose_name = 'Industry'            
-        verbose_name_plural = 'Industries'   
+        verbose_name_plural = 'Industries'
+        ordering = ['name'] 
 
     def __str__(self):
         return self.name 

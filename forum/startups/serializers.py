@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Startup
+from .models import Startup, Industry
 from projects.serializers import ProjectSerializer
 
 class StartupSerializer(serializers.ModelSerializer):
@@ -19,25 +19,27 @@ class StartupSerializer(serializers.ModelSerializer):
                 'funding_stage', 'number_of_employees', 'location', 'industries', 'company_logo',
                 'description', 'total_funding', 'website', 'created_at', 'projects' 
                 ]
-        
+
     def validate_company_name(self, value):
-        """
-        Validates that the company name is both present and unique Allows to update company name.
-        """
+        
+        #Validates that the company name is both present and unique Allows to update company name.
+        
         if not value:
             raise serializers.ValidationError("Company name cannot be empty.")
         
         request = self.context.get('request')
+        startup_id = self.instance.startup_id if self.instance else None
+        existing_company = Startup.objects.filter(company_name=value)
+
         if request and request.method == 'PUT':
-            startup_id = self.instance.startup_id if self.instance else None
-            if Startup.objects.filter(company_name=value).exclude(startup_id=startup_id).exists():
+            if existing_company.exclude(startup_id=startup_id).exists():
                 raise serializers.ValidationError("A company with this name already exists.")
         else:
-            if Startup.objects.filter(company_name=value).exists():
+            if existing_company.exists():
                 raise serializers.ValidationError("A company with this name already exists.")
 
         return value
-    
+
     def validate(self, data):
         """
         Validates that number of employees, total funding and required funding are positive values, 
@@ -46,13 +48,13 @@ class StartupSerializer(serializers.ModelSerializer):
         total_funding = data.get('total_funding')
         required_funding = data.get('required_funding')
         number_of_employees = data.get('number_of_employees')
-
-        if number_of_employees <= 0:
-            raise serializers.ValidationError("Total funding must be positive.")
+        
+        if number_of_employees is not None and number_of_employees <= 0:
+            raise serializers.ValidationError("Total funding must be a positive value.")
         if total_funding <= 0:
-            raise serializers.ValidationError("Total funding must be positive.")
+            raise serializers.ValidationError("Total funding must be a positive value.")
         if required_funding <= 0:
-            raise serializers.ValidationError("Required funding must be positive.")
+            raise serializers.ValidationError("Required funding must be a positive value.")
 
         if required_funding <= total_funding:
             raise serializers.ValidationError("Required funding must be greater than total funding.")
@@ -61,10 +63,21 @@ class StartupSerializer(serializers.ModelSerializer):
     
     def validate_description(self, value):
         """
-        Validates that the description is not less than 500 characters.
+        Validates that the description is not greater than 500 characters.
         """
         max_length = 500
         
         if len(value) > max_length:
             raise serializers.ValidationError(f"Description cannot exceed {max_length} characters.")
+        return value
+
+
+class IndustrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Industry
+        fields = ['industry_id', 'name']
+
+    def validate_name(self, value):
+        if Industry.objects.filter(name__iexact=value).exists():
+            raise serializers.ValidationError("This industry name already exists (case-insensitive match).")
         return value
