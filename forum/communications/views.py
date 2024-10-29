@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+
 import channels.layers
 
 from asgiref.sync import async_to_sync
@@ -8,10 +10,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from communications.models import Room, Message
-from communications.serializers import RoomSerializer, MessageSerializer
+from communications.models import Room, Message, Notification
+from communications.serializers import MessageSerializer, NotificationSerializer
 from communications.serializers import RoomSerializer
-from communications.signals import send_notification_via_channels
 from users.models import User
 
 
@@ -99,7 +100,22 @@ class MessageApiView(APIView):
                 f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
             )
 
-            send_notification_via_channels(user, message, True)
+            room = Room.objects(id=conversation_id).first()
+
+            receivers = [receiver for receiver in room.participants if receiver.user_id != str(user_id)]
+
+            # Display the filtered users
+            for receiver in receivers:
+                notification = Notification(
+                    user=receiver,
+                    message=message,
+                    is_read=False,
+                    created_at=datetime.now()
+                )
+
+                async_to_sync(channel_layer.group_send)( f"{str(receiver.user_id)}", {
+                    "type": "notification.message",
+                    "notification": NotificationSerializer(notification).data})
 
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 
