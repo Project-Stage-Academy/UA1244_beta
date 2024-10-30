@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'startups',
     'rest_framework',
     'djoser',
+    'rest_framework.authtoken'
     'django_extensions',
     'notifications.apps.NotificationsConfig',
     'corsheaders',
@@ -65,6 +66,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     'dj_rest_auth',
     'rest_framework.authtoken',
+
 
 ]
 
@@ -176,7 +178,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication'  
     ],
     
     'DEFAULT_PERMISSION_CLASSES': [
