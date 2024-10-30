@@ -111,6 +111,7 @@ cd forum && python3 manage.py runserver
 Prepare *.env* file containing sensitive info
 ```text
 SECRET_KEY=your_secret_key
+FERNET_KEY=your_base64_32_secret_key
 DEBUG=(boolean value)
 DATABASE_NAME=your_database_name
 DATABASE_USER=your_database_user
@@ -126,6 +127,11 @@ cd forum && python manage.py makemigrations
 
 ```shell
 cd forum && python manage.py migrate
+```
+
+## Fernet Key Geneation
+```shell
+openssl rand -base64 32 > secret.key
 ```
 
 ## Code Quality

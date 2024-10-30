@@ -221,3 +221,6 @@ babel.config.js
 .postcssrc
 .postcssrc.js
 .postcssrc.json
+
+#Secret key file
+secret.key

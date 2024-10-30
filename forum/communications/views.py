@@ -1,9 +1,11 @@
 import logging
+import os
 from datetime import datetime
 
 import channels.layers
 
 from asgiref.sync import async_to_sync
+from cryptography.fernet import Fernet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.request import Request
@@ -18,6 +20,7 @@ from users.models import User
 
 logger = logging.getLogger(__name__)
 
+cipher = Fernet(os.environ.get('FERNET_KEY'))
 
 class ConversationApiView(APIView):
 
@@ -89,12 +92,14 @@ class MessageApiView(APIView):
             user = get_object_or_404(User, user_id=user_id)
 
             text = request.data.get("text")
+            encrypted_text = cipher.encrypt(text.encode()).decode()
 
-            message = Message(sender={"user_id": str(user.user_id), "username": user.username}, message = text)
+            message = Message(sender={"user_id": str(user.user_id), "username": user.username}, message = encrypted_text)
 
             Room.objects(id=conversation_id).update_one(push__messages=message)
 
             # Send websocket message
+            message.message = text
             channel_layer = channels.layers.get_channel_layer()
             try:
                 async_to_sync(channel_layer.group_send)(
@@ -149,7 +154,13 @@ class ListMessagesApiView(APIView):
 
             room = Room.objects(id=conversation_id).first()
 
-            return Response(RoomSerializer(room).data['messages'], status=status.HTTP_200_OK)
+            encrypted_messages = RoomSerializer(room).data['messages']
+
+            messages = []
+            for encrypted_message in encrypted_messages:
+                messages.append(cipher.decrypt(encrypted_message['message'].encode()).decode())
+
+            return Response(messages, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error occurred: {e}")
