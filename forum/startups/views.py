@@ -231,6 +231,7 @@ class StartupListView(generics.ListAPIView):
         Returns:
             Response: A DRF Response containing serialized startup data or an error message if no startups are found.
         """
+        logger.info("Received GET request for startup list")
         try:
             startups = self.get_queryset()
             if not startups.exists():

@@ -376,30 +376,41 @@ class OAuthTokenObtainPairView(APIView):
         Returns:
             Response: A JSON response containing the access and refresh tokens.
         """
+        logger.info("Received OAuth token request.")
+        
         provider = request.data.get('provider')
         code = request.data.get('code')
 
         if not provider or not code:
+            logger.warning("Provider and code are required.")
             return Response({"error": "Provider and code are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            logger.info(f"Exchanging code for access token with provider: {provider}")
             access_token, user_data = self.exchange_code_and_get_user_profile(code, provider)
+            logger.info(f"User data retrieved: {user_data}")
+
             user = self.get_or_create_user(user_data)
+            logger.info(f"User retrieved/created: {user.email}")
 
             refresh = RefreshToken.for_user(user)
 
             if not user.is_active:
                 user.is_active = True
                 user.save()
+                logger.info(f"User {user.email} activated.")
 
+            logger.info("Successfully obtained JWT tokens.")
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             })
 
         except ValueError as e:
+            logger.error(f"Value error during token obtain: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
             return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_or_create_user(self, user_data):
@@ -415,12 +426,16 @@ class OAuthTokenObtainPairView(APIView):
         email = user_data.get('email')
 
         if not email:
+            logger.warning("Email not provided by OAuth provider.")
             raise ValueError("Email not provided by OAuth provider. Please make sure your email is public or use a different sign-in method.")
 
         try:
             user = User.objects.get(email=email)
+            logger.info(f"User found: {user.email}")
             return user
         except User.DoesNotExist:
+            logger.warning(f"User with email {email} does not exist. Creating a new user.")
+            
             user = User(email=email)
             user.username = email.split('@')[0]  
             
@@ -432,6 +447,7 @@ class OAuthTokenObtainPairView(APIView):
 
             user.is_active = True
             user.save()
+            logger.info(f"Created new user: {user.email}")
 
         return user
 
@@ -449,13 +465,15 @@ class OAuthTokenObtainPairView(APIView):
         if provider == 'google':
             access_token = self.exchange_code_for_token(
                 code,
-                token_url=os.environ.get('GOOGLE_TOKEN_URL'),
+                token_url=GOOGLE_TOKEN_URL,
                 client_id=os.environ.get('GOOGLE_CLIENT_ID'),
                 client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
                 redirect_uri=os.environ.get('GOOGLE_REDIRECT_URI'),
             )
-            user_data = self.get_user_profile(access_token, os.environ.get('GOOGLE_USERINFO_URL'))
+            user_data = self.get_user_profile(access_token, GOOGLE_USERINFO_URL)
+            logger.info(f"Access token obtained for Google user.")
         else:
+            logger.warning(f"Unsupported provider: {provider}")
             raise ValueError("Unsupported provider")
 
         return access_token, user_data
@@ -485,13 +503,18 @@ class OAuthTokenObtainPairView(APIView):
             data['redirect_uri'] = redirect_uri
 
         headers = {'Accept': 'application/json'}
+        logger.info(f"Requesting access token from provider with data: {data}")
         
         response = requests.post(token_url, data=data, headers=headers)
         response_data = response.json()
 
+        logger.info(f"Response from provider: {response_data}")
+
         if 'access_token' not in response_data:
+            logger.error(f"Failed to obtain access token from provider: {response_data}")
             raise ValueError(f"Failed to obtain access token from provider.")
 
+        logger.info("Successfully exchanged code for access token.")
         return response_data['access_token']
 
     def get_user_profile(self, access_token, userinfo_url, headers=None):
@@ -509,9 +532,12 @@ class OAuthTokenObtainPairView(APIView):
         headers = headers or {}
         params = {'access_token': access_token}
 
+        logger.info("Fetching user profile.")
         response = requests.get(userinfo_url, params=params, headers=headers)
 
         if response.status_code != 200:
+            logger.error(f"Failed to fetch user profile: {response.status_code} - {response.text}")
             raise ValueError("Failed to fetch user profile from provider.")
 
+        logger.info("Successfully retrieved user profile.")
         return response.json()
