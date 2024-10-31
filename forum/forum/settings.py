@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'startups',
     'rest_framework',
     'djoser',
-    'rest_framework.authtoken'
+    'rest_framework.authtoken',
     'django_extensions',
     'notifications.apps.NotificationsConfig',
     'corsheaders',
@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
     'dj_rest_auth',
-    'rest_framework.authtoken',
+    
 
 
 ]
