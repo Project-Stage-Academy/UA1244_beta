@@ -47,3 +47,24 @@
   text-align: center;
   margin-top: 10px;
 }
+
+.btn-google {
+  background-color: #db4437;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin: 10px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-google i {
+  margin-right: 10px;
+}
+
+
+.btn-google:hover {
+  opacity: 0.9;
+}

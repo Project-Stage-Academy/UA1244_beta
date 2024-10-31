@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import api from '../api';
 import '../styles/register.css';
 
 const Register = () => {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [validationError, setValidationError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -28,106 +28,132 @@ const Register = () => {
     return null;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const validationErrorMessage = validateInputs();
-    if (validationErrorMessage) {
-      setValidationError(validationErrorMessage);
+  const handleSubmitForm = (username, email, password, firstName, lastName, phone) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const validationError = validateInputs();
+    if (validationError) {
+      setError(validationError);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    
-    try {
-      const response = await axios.post('http://localhost:8000/api/v1/register/', {
-        email: email,
-        password: password,
-        username: username,
-        first_name: firstName,
-        last_name: lastName,
-        phone: phone,
-      });
-
-      console.log('User registered successfully:', response.data);
-      navigate('/login');
-    } catch (error) {
-      if (error.response) {
-        const { data } = error.response;
-        if (data.email) {
-          setError('This email is already in use.');
-        } else if (data.username) {
-          setError('This username is already taken.');
-        } else {
-          setError('Registration failed.');
-        }
-      } else {
-        setError('An error occurred. Please try again.');
+    api.post('/api/v1/register/', {
+      username,
+      email,
+      password,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+    })
+    .then(response => {
+      if (response.status === 201) {
+        setSuccess('Registration successful! Redirecting to login...');
+        setTimeout(() => navigate('/login'), 2000); // Redirect after 2 seconds
       }
-    } finally {
+    })
+    .catch(error => {
+      const errorMessage = error.response?.data?.non_field_errors ||
+                           error.response?.data?.email ||
+                           error.response?.data?.password ||
+                           'Registration failed. Please try again.';
+      setError(errorMessage);
+    })
+    .finally(() => {
       setLoading(false);
-    }
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleSubmitForm(username, email, password, firstName, lastName, phone);
+  };
+
+  const handleGoogleRegistration = () => {
+    const clientID = "442876958174-i2eara8qgmaon227mjd2an0b3egffo48.apps.googleusercontent.com";
+    const callBackURI = "http://127.0.0.1:3000/login/success/";
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=${callBackURI}&prompt=consent&response_type=code&client_id=${clientID}&scope=openid%20email%20profile&access_type=offline`;
   };
 
   return (
-    <div className="register-container">
+    <div className="register-container form-container">
       <h2>Register</h2>
-      {validationError && <p className="alert alert-danger">{validationError}</p>}
-      {error && <p className="alert alert-danger">{error}</p>}
+      {error && <div className="alert alert-danger">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
       <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          required
-        />
-        <input
-          type="tel"
-          placeholder="Phone (+XXXXXXXXXXX)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-        />
-        <div className="password-container">
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="Last Name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="Phone (+XXXXXXXXXXX)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+        <div className="form-group password-field">
           <input
             type={showPassword ? 'text' : 'password'}
-            placeholder="Password"
+            placeholder="Password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <span 
+          <span
             className={`password-toggle ${showPassword ? 'show' : 'hide'}`}
             onClick={() => setShowPassword(!showPassword)}
           >
             {showPassword ? '🙈' : '🙉'}
           </span>
         </div>
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} className="btn btn-primary">
           {loading ? 'Registering...' : 'Register'}
         </button>
+        <div className="oauth-buttons">
+          <button
+            type="button"
+            className="btn btn-google"
+            onClick={handleGoogleRegistration}
+          >
+            <i className="fab fa-google"></i> Register with Google
+          </button>
+        </div>
       </form>
     </div>
   );

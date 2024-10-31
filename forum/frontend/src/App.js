@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import BaseLayout from './components/BaseLayout';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './ProtectedRoute';
+import LoginSuccess from './components/LoginSuccess';
 
 const Home = React.lazy(() => import('./components/home'));
 const Login = React.lazy(() => import('./components/login'));
@@ -28,7 +29,8 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/select-role" element={<SelectRole />} />
-                {/* Використання ProtectedRoute */}
+                <Route path="/login/success" element={<LoginSuccess />} />
+               
                 <Route path="/startup-page" element={<ProtectedRoute element={StartupPage} />} />
                 <Route path="/investor-page" element={<ProtectedRoute element={InvestorPage} />} />
                 <Route path="/unassigned-page" element={<ProtectedRoute element={UnassignedPage} />} />
