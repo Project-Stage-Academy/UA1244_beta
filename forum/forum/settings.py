@@ -54,32 +54,23 @@ INSTALLED_APPS = [
     'startups',
     'rest_framework',
     'djoser',
+    'rest_framework.authtoken',
     'django_extensions',
     'notifications.apps.NotificationsConfig',
     'corsheaders',
-    'django.contrib.sites',  
+    'django.contrib.sites',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
     'dj_rest_auth',
-    'rest_framework.authtoken',
-  
+    
+
+
 ]
 
-
 AUTH_USER_MODEL = 'users.User'
-
-
-
-ASGI_APPLICATION = 'forum.asgi.application'
-
-CHANNEL_LAYERS = {
-        'default':{
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-            },
-        }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -92,15 +83,20 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-    
 ]
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  
+    'allauth.account.auth_backends.AuthenticationBackend',  
+)
+
 
 ROOT_URLCONF = 'forum.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -188,7 +184,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication'  
     ],
     
     'DEFAULT_PERMISSION_CLASSES': [
@@ -319,12 +317,12 @@ LOGGING = {
         },
         'file': {
             'level': os.environ.get("LOG_LEVEL", "DEBUG"),
-            'class': 'logging.handlers.RotatingFileHandler',  
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': LOG_FILE_PATH,
-            'maxBytes': 1024 * 1024,  
-            'backupCount': 3,  
+            'maxBytes': 1024 * 1024,
+            'backupCount': 3,
             'formatter': 'verbose',
-            'delay': True,  
+            'delay': True,
         },
     },
     'loggers': {
@@ -367,23 +365,32 @@ LOGGING = {
 ASGI_APPLICATION = 'forum.asgi.application'
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
-    },
-}
+        'default':{
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            },
+        }
+
+# Parametrize for local vs prod. In local let's use in memory channels.
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }
 
 
 # CORS FOR REACT
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',  
+    "http://localhost:3000",
+    "http://127.0.0.1:3000", 
 ]
 
 
@@ -408,7 +415,7 @@ SOCIALACCOUNT_PROVIDERS = {
             'access_type': 'online',
         },
         'APP': {
-            'client_id': os.environ.get('GITHUB_CLIENT_ID'),  
+            'client_id': os.environ.get('GITHUB_CLIENT_ID'),
             'secret': os.environ.get('GITHUB_CLIENT_SECRET'),
             'redirect_uri': os.environ.get('GITHUB_REDIRECT_URI'),
             'key': ''
@@ -420,3 +427,7 @@ SOCIALACCOUNT_PROVIDERS = {
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_ADAPTER = 'users.adapter.CustomSocialAccountAdapter'
+
+LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
+SOCIALACCOUNT_LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
+

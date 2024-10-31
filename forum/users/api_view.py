@@ -363,35 +363,35 @@ class LoginAPIView(APIView):
             
 
 
-class OAuthTokenObtainPairView(TokenObtainPairView):
-    """
-    Custom view for obtaining JWT tokens using OAuth provider credentials.
-
-    This view handles OAuth login by exchanging an authorization code from a provider
-    (such as Google or GitHub) for an access token, retrieving user profile data, and
-    creating or fetching a corresponding user in the local database.
-    """
+class OAuthTokenObtainPairView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         """
-        Handle OAuth login, exchanging the authorization code for an access token,
-        and then issuing JWT tokens.
+        Handles the OAuth token request by exchanging the authorization code for an access token.
 
         Args:
-            request: HTTP request containing 'provider' and 'code' in the body.
+            request: The HTTP request object containing provider and code.
 
         Returns:
-            Response with JWT tokens if successful; error message otherwise.
+            Response: A JSON response containing the access and refresh tokens.
         """
+        logger.info("Received OAuth token request.")
+        
         provider = request.data.get('provider')
         code = request.data.get('code')
 
         if not provider or not code:
+            logger.warning("Provider and code are required.")
             return Response({"error": "Provider and code are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            logger.info(f"Exchanging code for access token with provider: {provider}")
             access_token, user_data = self.exchange_code_and_get_user_profile(code, provider)
+            logger.info(f"User data retrieved: {user_data}")
+
             user = self.get_or_create_user(user_data)
+            logger.info(f"User retrieved/created: {user.email}")
 
             refresh = RefreshToken.for_user(user)
 
@@ -400,6 +400,7 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
                 user.save()
                 logger.info(f"User {user.email} activated.")
 
+            logger.info("Successfully obtained JWT tokens.")
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
@@ -414,38 +415,52 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
 
     def get_or_create_user(self, user_data):
         """
-        Retrieve an existing user or create a new one based on OAuth user data.
+        Retrieves an existing user or creates a new one if it doesn't exist.
 
         Args:
-            user_data (dict): User profile information obtained from the OAuth provider.
+            user_data: A dictionary containing user information.
 
         Returns:
-            User instance for the authenticated or newly created user.
+            User: The retrieved or newly created user instance.
         """
         email = user_data.get('email')
 
         if not email:
+            logger.warning("Email not provided by OAuth provider.")
             raise ValueError("Email not provided by OAuth provider. Please make sure your email is public or use a different sign-in method.")
 
-        user, created = User.objects.get_or_create(email=email)
+        try:
+            user = User.objects.get(email=email)
+            logger.info(f"User found: {user.email}")
+            return user
+        except User.DoesNotExist:
+            logger.warning(f"User with email {email} does not exist. Creating a new user.")
+            
+            user = User(email=email)
+            user.username = email.split('@')[0]  
+            
+            base_username = user.username
+            counter = 1
+            while User.objects.filter(username=user.username).exists():
+                user.username = f"{base_username}_{counter}"
+                counter += 1
 
-        if created:
-            user.username = user_data.get('username', email.split('@')[0])
-            user.is_active = False
+            user.is_active = True
             user.save()
+            logger.info(f"Created new user: {user.email}")
 
         return user
 
     def exchange_code_and_get_user_profile(self, code, provider):
         """
-        Exchanges the authorization code for an access token and retrieves user profile data.
+        Exchanges the authorization code for an access token and retrieves the user profile.
 
         Args:
-            code (str): Authorization code received from the OAuth provider.
-            provider (str): Name of the OAuth provider (e.g., 'google', 'github').
+            code: The authorization code received from the provider.
+            provider: The OAuth provider (e.g., 'google').
 
         Returns:
-            Tuple containing the access token and user profile data as a dictionary.
+            tuple: A tuple containing the access token and user data.
         """
         if provider == 'google':
             access_token = self.exchange_code_for_token(
@@ -453,39 +468,29 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
                 token_url=GOOGLE_TOKEN_URL,
                 client_id=os.environ.get('GOOGLE_CLIENT_ID'),
                 client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
-                redirect_uri=os.environ.get('GOOGLE_REDIRECT_URI')
+                redirect_uri=os.environ.get('GOOGLE_REDIRECT_URI'),
             )
             user_data = self.get_user_profile(access_token, GOOGLE_USERINFO_URL)
-        elif provider == 'github':
-            access_token = self.exchange_code_for_token(
-                code,
-                token_url=GITHUB_TOKEN_URL,
-                client_id=os.environ.get('GITHUB_CLIENT_ID'),
-                client_secret=os.environ.get('GITHUB_CLIENT_SECRET'),
-                redirect_uri=os.environ.get('GITHUB_REDIRECT_URI')
-            )
-            user_data = self.get_user_profile(access_token, GITHUB_USER_URL, headers={'Authorization': f'token {access_token}'})
+            logger.info(f"Access token obtained for Google user.")
         else:
+            logger.warning(f"Unsupported provider: {provider}")
             raise ValueError("Unsupported provider")
 
         return access_token, user_data
 
     def exchange_code_for_token(self, code, token_url, client_id, client_secret, redirect_uri=None):
         """
-        Exchanges an authorization code for an access token from the OAuth provider.
+        Exchanges the authorization code for an access token.
 
         Args:
-            code (str): Authorization code provided by the OAuth provider.
-            token_url (str): Token endpoint URL for the provider.
-            client_id (str): Client ID for the OAuth application.
-            client_secret (str): Client secret for the OAuth application.
-            redirect_uri (str, optional): Redirect URI registered with the provider.
+            code: The authorization code to exchange.
+            token_url: The URL to request the access token.
+            client_id: The client ID for the OAuth application.
+            client_secret: The client secret for the OAuth application.
+            redirect_uri: The redirect URI for the OAuth application.
 
         Returns:
-            str: Access token received from the OAuth provider.
-
-        Raises:
-            ValueError: If the access token is not found in the response.
+            str: The access token received from the provider.
         """
         data = {
             'client_id': client_id,
@@ -497,28 +502,42 @@ class OAuthTokenObtainPairView(TokenObtainPairView):
         if redirect_uri:
             data['redirect_uri'] = redirect_uri
 
-        response = requests.post(token_url, data=data)
+        headers = {'Accept': 'application/json'}
+        logger.info(f"Requesting access token from provider with data: {data}")
+        
+        response = requests.post(token_url, data=data, headers=headers)
         response_data = response.json()
 
-        if 'access_token' not in response_data:
-            raise ValueError(f"Failed to obtain access token from {token_url}")
+        logger.info(f"Response from provider: {response_data}")
 
+        if 'access_token' not in response_data:
+            logger.error(f"Failed to obtain access token from provider: {response_data}")
+            raise ValueError(f"Failed to obtain access token from provider.")
+
+        logger.info("Successfully exchanged code for access token.")
         return response_data['access_token']
 
     def get_user_profile(self, access_token, userinfo_url, headers=None):
         """
-        Retrieves the user profile information from the OAuth provider.
+        Retrieves the user's profile information using the access token.
 
         Args:
-            access_token (str): Access token for authenticating the request.
-            userinfo_url (str): URL for retrieving user profile information.
-            headers (dict, optional): Additional headers to include in the request.
+            access_token: The access token for authenticating the request.
+            userinfo_url: The URL to retrieve the user profile.
+            headers: Optional headers for the request.
 
         Returns:
-            dict: User profile data obtained from the provider's userinfo endpoint.
+            dict: A dictionary containing the user's profile information.
         """
         headers = headers or {}
         params = {'access_token': access_token}
 
+        logger.info("Fetching user profile.")
         response = requests.get(userinfo_url, params=params, headers=headers)
+
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch user profile: {response.status_code} - {response.text}")
+            raise ValueError("Failed to fetch user profile from provider.")
+
+        logger.info("Successfully retrieved user profile.")
         return response.json()

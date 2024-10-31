@@ -4,6 +4,7 @@ from investors.models import Investor
 import uuid
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 from simple_history.models import HistoricalRecords
 
 
@@ -55,6 +56,7 @@ class Project(models.Model):
         actual_finish_date (date): Actual finish date of the project.
         created_at (datetime): Timestamp of when the project was created.
         last_update (datetime): Timestamp of the last update to the project.
+        industry (str): Industry related to the project.
         media (ForeignKey): Reference to the Media associated with the project.
     """
     project_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -69,6 +71,7 @@ class Project(models.Model):
     actual_finish_date = models.DateField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_update = models.DateTimeField(auto_now=True)
+    industry = models.CharField(max_length=100, db_index=True)
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
     history = HistoricalRecords()
 
@@ -76,10 +79,28 @@ class Project(models.Model):
         verbose_name = 'Project'
         verbose_name_plural = 'Projects'
 
+    def funding_received(self):
+        """
+          Calculate the total funding received for the project.
+
+          If funding is based on monetary contributions, it sums the funded_amount.
+          If funding is based on percentage shares, it calculates the total share and ensures it does not exceed 100%.
+        """
+        funded_amount_by_now = (self.subscribed_projects.aggregate(models.Sum('funded_amount'))['funded_amount__sum']
+                                or Decimal('0.00'))
+
+        # can be also used if needed.
+        # funded_share_by_now = self.subscribed_projects.aggregate(models.Sum('investment_share'))['investment_share__sum']
+        # or Decimal('0.00')
+
+        return funded_amount_by_now
+
+
     def clean(self):
         if self.actual_finish_date and self.planned_start_date:
             if self.actual_finish_date < self.planned_start_date:
                 raise ValidationError(_('Actual finish date cannot be earlier than planned start date.'))
+
 
     def __str__(self):
         return self.title
@@ -125,13 +146,18 @@ class Subscription(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['project_id', 'investor_id'], name='unique_project_investor')
+            models.UniqueConstraint(fields=['project_id', 'investor_id'], name='unique_project_investor'),
+            models.CheckConstraint(
+                check=models.Q(investment_share__gte=0, investment_share__lte=100),
+                name='check_investment_share'
+            ),
         ]
 
     def clean(self):
         super().clean()
         if self.funded_amount < 0:
             raise ValidationError(_('Funded amount must be a positive number.'))
+
 
         if self.project_id:
             total_share = self.project_id.subscribed_projects.aggregate(models.Sum('investment_share'))[
