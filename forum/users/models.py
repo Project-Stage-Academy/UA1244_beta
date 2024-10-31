@@ -36,7 +36,7 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
 
         if not active_role:
-            active_role = Role.objects.get(name='unassigned')
+            active_role = Role.objects.filter(name='unassigned').first()
 
         user = self.model(email=email, active_role=active_role, **extra_fields)
         user.set_password(password)

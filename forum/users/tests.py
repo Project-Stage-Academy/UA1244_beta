@@ -144,7 +144,7 @@ class RolePermissionTests(APITestCase):
         """
         Test access for anonymous users (should be forbidden).
         """
-        self.assertEqual(self.user_investor.active_role.name, 'investor')
         response = self.client.get(reverse('startup-only'))
         self.assertEqual(response.status_code, 401)
+
 

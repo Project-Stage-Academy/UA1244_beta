@@ -25,6 +25,10 @@ const Register = () => {
     if (!phone) return 'Phone number is required';
     if (!/^\+?\d{10,15}$/.test(phone)) return 'Phone number must be in the format +XXXXXXXXXXX';
     if (password.length < 8) return 'Password must be at least 8 characters long';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+    if (!/[!@#$%^&*]/.test(password)) return 'Password must contain at least one special character';
     return null;
   };
 
