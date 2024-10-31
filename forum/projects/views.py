@@ -5,8 +5,9 @@ from django.shortcuts import render, get_object_or_404, HttpResponse
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Project
-from .serializers import ProjectSerializer
+from users.permissions import IsInvestor
+from .models import Project, Subscription
+from .serializers import ProjectSerializer, SubscriptionSerializer
 
 
 class ProjectListCreateView(generics.ListCreateAPIView):
@@ -79,3 +80,25 @@ def projects(request):
         return HttpResponse("Not implemented")
     except Exception as e:
         logger.error(f"Error occurred: {e}")
+
+
+class SubscriptionCreateView(generics.ListCreateAPIView):
+    queryset = Subscription.objects.all()
+    serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated, IsInvestor]
+
+    def perform_create(self, serializer):
+        project = serializer.validated_data['project']
+        total_funding_received = project.subscribed_projects.aggregate(Sum('funded_amount'))['funded_amount__sum'] or 0
+        remaining_funding = project.required_amount - total_funding_received
+
+        proposed_funding = serializer.validated_data['funded_amount']
+        if proposed_funding > remaining_funding:
+            raise serializer.ValidationError("Investment exceeds remaining funding for this project.")
+        serializer.save()
+
+        remaining_funding -=proposed_funding
+
+        return render(request,
+                      template_name='projects/project_history.html',
+                      context={'project':project, 'funding_recieved': total_funding_received})
