@@ -2,6 +2,9 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
+from django.urls import re_path
+
+from communications.consumers import CommunicationConsumer
 from projects.routing import websocket_urlpatterns
 from django.urls import path
 from communications.consumers import CommunicationConsumer
@@ -28,11 +31,8 @@ application = ProtocolTypeRouter({
         URLRouter(
             [
                 *websocket_urlpatterns,
-                *[path('ws/communications/', CommunicationConsumer.as_asgi()),]
+                re_path(r"ws/communications/(?P<room_id>\w+)/$", CommunicationConsumer.as_asgi())
             ]
         )
-    ),
-    # "websocket": URLRouter([
-    #     path('ws/communications/', CommunicationConsumer.as_asgi())
-    # ])
+    )
 })
