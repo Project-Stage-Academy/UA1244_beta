@@ -6,18 +6,36 @@ import '../styles/startupItem.css';
 const StartupItem = () => {
   const { id } = useParams();
   const [startup, setStartup] = useState({});
+  const [industries, setIndustries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');  
+  const [message, setMessage] = useState('');
   const [messageSent, setMessageSent] = useState(false);
 
   useEffect(() => {
-    axios.get(`http://localhost:8000/api/startups/${id}/`)
+    const accessToken = localStorage.getItem('accessToken');
+    
+    axios.get(`http://localhost:8000/startups/${id}/`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    })
       .then(response => {
         setStartup(response.data);
+        return response.data.industries;
+      })
+      .then(industryIds => {
+        return axios.post('http://localhost:8000/startups/industries/bulk/', { ids: industryIds }, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+      })
+      .then(response => {
+        setIndustries(response.data);
         setLoading(false);
       })
       .catch(error => {
-        console.error(error);
+        console.error("Error fetching startup details:", error);
         setLoading(false);
       });
   }, [id]);
@@ -28,17 +46,24 @@ const StartupItem = () => {
       return;
     }
 
-    axios.post('http://localhost:8000/api/startups/message/', {
+    const accessToken = localStorage.getItem('accessToken');
+    axios.post('http://localhost:8000/startups/message/', {
       startup_id: id,
       content: message,
-    }).then(response => {
-      alert('Message sent!');
-      setMessage('');  
-      setMessageSent(true);  
-    }).catch(error => {
-      console.error(error);
-      alert('Error sending message.');
-    });
+    }, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    })
+      .then(response => {
+        alert('Message sent!');
+        setMessage('');
+        setMessageSent(true);
+      })
+      .catch(error => {
+        console.error("Error sending message:", error);
+        alert('Error sending message.');
+      });
   };
 
   if (loading) {
@@ -48,12 +73,33 @@ const StartupItem = () => {
   return (
     <div className="startup-item-container">
       <h2>{startup.company_name}</h2>
+      {startup.company_logo && <img src={startup.company_logo} alt={`${startup.company_name} logo`} />}
       <p>{startup.description}</p>
       <p>Funding Stage: {startup.funding_stage}</p>
       <p>Employees: {startup.number_of_employees}</p>
       <p>Location: {startup.location ? `${startup.location.city}, ${startup.location.country}` : 'No location provided'}</p>
       <p>Total Funding: ${startup.total_funding}</p>
+      <p>Required Funding: ${startup.required_funding}</p>
       <p>Website: {startup.website ? <a href={startup.website}>{startup.website}</a> : 'No website available'}</p>
+      
+      <p>Industries: {industries.length > 0 ? industries.map(industry => industry.name).join(', ') : 'No industries listed'}</p>
+
+      <div className="projects-section">
+        <h3>Projects</h3>
+        {startup.projects && startup.projects.length > 0 ? (
+          <ul>
+            {startup.projects.map(project => (
+              <li key={project.project_id}>
+                <h4>{project.title}</h4>
+                <p>{project.description}</p>
+                <p>Status: {project.status}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No projects available.</p>
+        )}
+      </div>
 
       <div className="message-container">
         <textarea
@@ -65,7 +111,6 @@ const StartupItem = () => {
         <button onClick={handleMessageSend} className="message-button">
           Send Message
         </button>
-
         {messageSent && <p className="text-success mt-2">Your message was sent successfully!</p>}
       </div>
     </div>

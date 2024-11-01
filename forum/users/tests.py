@@ -2,6 +2,9 @@ from django.test import TestCase
 from django.urls import reverse
 from users.models import Role, User
 from rest_framework.test import APITestCase
+from rest_framework import status
+from unittest.mock import patch
+
 
 class RoleTests(TestCase):
     
@@ -148,3 +151,112 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(response.status_code, 401)
 
 
+
+class OAuthTokenObtainPairViewTests(APITestCase):
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    def test_missing_provider_or_code(self, mock_exchange_code_and_get_user_profile):
+        """
+        Test for missing provider or authorization code.
+        """
+        response = self.client.post(reverse('token_obtain_oauth'), {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "Provider and code are required"})
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    def test_failed_user_profile_fetch(self, mock_exchange_code_and_get_user_profile):
+        """
+        Test for handling errors during user profile fetch.
+        """
+        mock_exchange_code_and_get_user_profile.side_effect = ValueError("Failed to fetch user profile from provider.")
+
+        response = self.client.post(reverse('token_obtain_oauth'), {
+            'provider': 'google',
+            'code': 'mock_code'
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "Failed to fetch user profile from provider."})
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    @patch('users.api_view.OAuthTokenObtainPairView.get_or_create_user')
+    def test_inactive_user(self, mock_get_or_create_user, mock_exchange_code_and_get_user_profile):
+        """
+        Ensure inactive users do not receive tokens.
+        """
+        user = User.objects.create(email='inactiveuser@example.com', is_active=False)
+        mock_exchange_code_and_get_user_profile.return_value = ('mock_access_token', {'email': 'inactiveuser@example.com'})
+        mock_get_or_create_user.return_value = user
+
+        response = self.client.post(reverse('token_obtain_oauth'), {
+            'provider': 'google',
+            'code': 'mock_code'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "User account is inactive."})
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    @patch('users.api_view.OAuthTokenObtainPairView.get_or_create_user')
+    def test_user_exists(self, mock_get_or_create_user, mock_exchange_code_and_get_user_profile):
+        """
+        Ensure an existing user is not created again.
+        """
+        mock_user_data = {'email': 'existinguser@example.com'}
+        user = User.objects.create(email='existinguser@example.com', is_active=True)
+        mock_exchange_code_and_get_user_profile.return_value = ('mock_access_token', mock_user_data)
+        mock_get_or_create_user.return_value = user
+
+        response = self.client.post(reverse('token_obtain_oauth'), {
+            'provider': 'google',
+            'code': 'mock_code'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    def test_create_new_user(self, mock_exchange_code_and_get_user_profile):
+        """
+        Ensure a new user is created on first OAuth login.
+        """
+        mock_user_data = {'email': 'newuser@example.com'}
+        mock_exchange_code_and_get_user_profile.return_value = ('mock_access_token', mock_user_data)
+
+        response = self.client.post(reverse('token_obtain_oauth'), {
+            'provider': 'google',
+            'code': 'mock_code'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(User.objects.filter(email='newuser@example.com').exists())
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    def test_incorrect_auth_code(self, mock_exchange_code_and_get_user_profile):
+        """
+        Ensure an invalid authorization code fails.
+        """
+        mock_exchange_code_and_get_user_profile.side_effect = ValueError("Failed to obtain access token from provider.")
+
+        response = self.client.post(reverse('token_obtain_oauth'), {
+            'provider': 'google',
+            'code': 'invalid_code'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {"error": "Failed to obtain access token from provider."})
+
+    @patch('users.api_view.OAuthTokenObtainPairView.exchange_code_and_get_user_profile')
+    def test_refresh_user_tokens(self, mock_exchange_code_and_get_user_profile):
+        """
+        Ensure an existing active user can receive new tokens.
+        """
+        user = User.objects.create(email='activeuser@example.com', is_active=True)
+        mock_exchange_code_and_get_user_profile.return_value = ('mock_access_token', {'email': 'activeuser@example.com'})
+
+        response = self.client.post(reverse('token_obtain_oauth'), {
+            'provider': 'google',
+            'code': 'mock_code'
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)

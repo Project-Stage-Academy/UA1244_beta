@@ -36,7 +36,7 @@ function App() {
                 <Route path="/unassigned-page" element={<ProtectedRoute element={UnassignedPage} />} />
                 <Route path="/startuplist" element={<ProtectedRoute element={StartupsList} />} />
                 <Route path="/contact/:startupId" element={<ProtectedRoute element={SendMessageForm} />} />
-                <Route path="/startup/:id" element={<ProtectedRoute element={StartupItem} />} />
+                <Route path="/startups/:id" element={<ProtectedRoute element={StartupItem} />} />
               </Routes>
             </Suspense>
           </ErrorBoundary>

@@ -362,135 +362,118 @@ class LoginAPIView(APIView):
             return Response(data, status=status.HTTP_200_OK)
             
 
-
 class OAuthTokenObtainPairView(APIView):
+    """
+    API view to handle OAuth token requests by exchanging an authorization code for access and refresh tokens.
+    Supports Google as the OAuth provider.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         """
         Handles the OAuth token request by exchanging the authorization code for an access token.
-
-        Args:
-            request: The HTTP request object containing provider and code.
-
-        Returns:
-            Response: A JSON response containing the access and refresh tokens.
-        """
-        logger.info("Received OAuth token request.")
         
+        Parameters:
+            request (Request): The HTTP request containing provider and code in the request data.
+        
+        Returns:
+            Response: JSON response containing access and refresh tokens if successful, 
+                      or an error message if the request fails.
+        """
         provider = request.data.get('provider')
         code = request.data.get('code')
 
         if not provider or not code:
-            logger.warning("Provider and code are required.")
             return Response({"error": "Provider and code are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            logger.info(f"Exchanging code for access token with provider: {provider}")
             access_token, user_data = self.exchange_code_and_get_user_profile(code, provider)
-            logger.info(f"User data retrieved: {user_data}")
-
             user = self.get_or_create_user(user_data)
-            logger.info(f"User retrieved/created: {user.email}")
-
-            refresh = RefreshToken.for_user(user)
 
             if not user.is_active:
-                user.is_active = True
-                user.save()
-                logger.info(f"User {user.email} activated.")
+                return Response({"error": "User account is inactive."}, status=status.HTTP_400_BAD_REQUEST)
 
-            logger.info("Successfully obtained JWT tokens.")
+            refresh = RefreshToken.for_user(user)
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             })
 
         except ValueError as e:
-            logger.error(f"Value error during token obtain: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
             return Response({"error": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_or_create_user(self, user_data):
         """
-        Retrieves an existing user or creates a new one if it doesn't exist.
-
-        Args:
-            user_data: A dictionary containing user information.
-
+        Retrieves an existing user or creates a new one based on OAuth profile data.
+        
+        Parameters:
+            user_data (dict): Dictionary containing user profile information, typically including email.
+        
         Returns:
-            User: The retrieved or newly created user instance.
+            User: A User instance matching the provided data.
+        
+        Raises:
+            ValueError: If email is not provided in the user data.
         """
         email = user_data.get('email')
-
         if not email:
-            logger.warning("Email not provided by OAuth provider.")
-            raise ValueError("Email not provided by OAuth provider. Please make sure your email is public or use a different sign-in method.")
+            raise ValueError("Email not provided by OAuth provider. Please make sure your email is public.")
 
-        try:
-            user = User.objects.get(email=email)
-            logger.info(f"User found: {user.email}")
-            return user
-        except User.DoesNotExist:
-            logger.warning(f"User with email {email} does not exist. Creating a new user.")
-            
-            user = User(email=email)
-            user.username = email.split('@')[0]  
-            
-            base_username = user.username
-            counter = 1
-            while User.objects.filter(username=user.username).exists():
-                user.username = f"{base_username}_{counter}"
-                counter += 1
-
-            user.is_active = True
+        user, created = User.objects.get_or_create(email=email, defaults={'username': email.split('@')[0]})
+        if created:
+            user.is_active = True  
             user.save()
             logger.info(f"Created new user: {user.email}")
-
+        else:
+            logger.info(f"User found: {user.email}")
+        
         return user
 
     def exchange_code_and_get_user_profile(self, code, provider):
         """
-        Exchanges the authorization code for an access token and retrieves the user profile.
-
-        Args:
-            code: The authorization code received from the provider.
-            provider: The OAuth provider (e.g., 'google').
-
+        Exchanges an authorization code for an access token and retrieves the user profile.
+        
+        Parameters:
+            code (str): Authorization code received from the OAuth provider.
+            provider (str): Name of the OAuth provider, currently supports 'google' only.
+        
         Returns:
-            tuple: A tuple containing the access token and user data.
+            tuple: Access token and user profile data.
+        
+        Raises:
+            ValueError: If an unsupported provider is specified.
         """
-        if provider == 'google':
-            access_token = self.exchange_code_for_token(
-                code,
-                token_url=GOOGLE_TOKEN_URL,
-                client_id=os.environ.get('GOOGLE_CLIENT_ID'),
-                client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
-                redirect_uri=os.environ.get('GOOGLE_REDIRECT_URI'),
-            )
-            user_data = self.get_user_profile(access_token, GOOGLE_USERINFO_URL)
-            logger.info(f"Access token obtained for Google user.")
-        else:
-            logger.warning(f"Unsupported provider: {provider}")
+        if provider != 'google':
             raise ValueError("Unsupported provider")
 
+        access_token = self.exchange_code_for_token(
+            code,
+            token_url=GOOGLE_TOKEN_URL,
+            client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+            client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+            redirect_uri=os.environ.get('GOOGLE_REDIRECT_URI'),
+        )
+        user_data = self.get_user_profile(access_token, GOOGLE_USERINFO_URL)
         return access_token, user_data
 
     def exchange_code_for_token(self, code, token_url, client_id, client_secret, redirect_uri=None):
         """
         Exchanges the authorization code for an access token.
-
-        Args:
-            code: The authorization code to exchange.
-            token_url: The URL to request the access token.
-            client_id: The client ID for the OAuth application.
-            client_secret: The client secret for the OAuth application.
-            redirect_uri: The redirect URI for the OAuth application.
-
+        
+        Parameters:
+            code (str): The authorization code to exchange.
+            token_url (str): The URL to request the access token.
+            client_id (str): Client ID for the OAuth application.
+            client_secret (str): Client secret for the OAuth application.
+            redirect_uri (str, optional): Redirect URI for the OAuth application.
+        
         Returns:
-            str: The access token received from the provider.
+            str: Access token provided by the OAuth provider.
+        
+        Raises:
+            ValueError: If the access token is not present in the provider's response.
         """
         data = {
             'client_id': client_id,
@@ -498,46 +481,36 @@ class OAuthTokenObtainPairView(APIView):
             'code': code,
             'grant_type': 'authorization_code',
         }
-
         if redirect_uri:
             data['redirect_uri'] = redirect_uri
 
         headers = {'Accept': 'application/json'}
-        logger.info(f"Requesting access token from provider with data: {data}")
-        
         response = requests.post(token_url, data=data, headers=headers)
         response_data = response.json()
 
-        logger.info(f"Response from provider: {response_data}")
-
         if 'access_token' not in response_data:
-            logger.error(f"Failed to obtain access token from provider: {response_data}")
-            raise ValueError(f"Failed to obtain access token from provider.")
-
-        logger.info("Successfully exchanged code for access token.")
+            raise ValueError("Failed to obtain access token from provider.")
+        
         return response_data['access_token']
 
-    def get_user_profile(self, access_token, userinfo_url, headers=None):
+    def get_user_profile(self, access_token, userinfo_url):
         """
-        Retrieves the user's profile information using the access token.
-
-        Args:
-            access_token: The access token for authenticating the request.
-            userinfo_url: The URL to retrieve the user profile.
-            headers: Optional headers for the request.
-
+        Retrieves user profile information using the access token.
+        
+        Parameters:
+            access_token (str): Access token for authentication.
+            userinfo_url (str): URL to fetch user profile data.
+        
         Returns:
-            dict: A dictionary containing the user's profile information.
+            dict: Dictionary containing user's profile information.
+        
+        Raises:
+            ValueError: If fetching the user profile fails.
         """
-        headers = headers or {}
-        params = {'access_token': access_token}
-
-        logger.info("Fetching user profile.")
-        response = requests.get(userinfo_url, params=params, headers=headers)
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get(userinfo_url, headers=headers)
 
         if response.status_code != 200:
-            logger.error(f"Failed to fetch user profile: {response.status_code} - {response.text}")
             raise ValueError("Failed to fetch user profile from provider.")
 
-        logger.info("Successfully retrieved user profile.")
         return response.json()
