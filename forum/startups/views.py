@@ -310,7 +310,7 @@ def get_industries_bulk(request):
     Endpoint to retrieve a list of industries by their IDs.
 
     This endpoint accepts a POST request containing a list of industry IDs and returns
-    the corresponding industry objects. It is intended to provide detailed information 
+    the corresponding industry objects if they exist. It is intended to provide detailed information 
     about multiple industries in a single request, based on the provided IDs.
 
     Parameters:
@@ -320,6 +320,8 @@ def get_industries_bulk(request):
     Returns:
     - 200 OK: A JSON response containing the details of the requested industries. Each industry 
       is serialized with its respective attributes.
+    - 404 Not Found: If no industries are found with the provided IDs, a JSON response with 
+      an error message is returned.
     - 400 Bad Request: If no industry IDs are provided in the request, a JSON response with 
       an error message is returned.
 
@@ -331,5 +333,9 @@ def get_industries_bulk(request):
         return Response({"error": "No industry IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
 
     industries = Industry.objects.filter(industry_id__in=ids)
+    
+    if not industries.exists():
+        return Response({"error": "No industries found for the provided IDs"}, status=status.HTTP_404_NOT_FOUND)
+
     serializer = IndustrySerializer(industries, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)

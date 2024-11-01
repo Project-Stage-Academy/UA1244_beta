@@ -12,58 +12,58 @@ const StartupItem = () => {
   const [messageSent, setMessageSent] = useState(false);
 
   useEffect(() => {
-    const accessToken = localStorage.getItem('accessToken');
-    
-    axios.get(`http://localhost:8000/startups/${id}/`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    })
-      .then(response => {
-        setStartup(response.data);
-        return response.data.industries;
-      })
-      .then(industryIds => {
-        return axios.post('http://localhost:8000/startups/industries/bulk/', { ids: industryIds }, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
-      })
-      .then(response => {
-        setIndustries(response.data);
-        setLoading(false);
-      })
-      .catch(error => {
+    const fetchStartupData = async () => {
+      const accessToken = localStorage.getItem('accessToken');
+      
+      try {
+        const headers = {
+          Authorization: `Bearer ${accessToken}`
+        };
+
+        const startupResponse = axios.get(`http://localhost:8000/startups/${id}/`, { headers });
+        const industriesResponse = startupResponse.then(response =>
+          axios.post(
+            'http://localhost:8000/startups/industries/bulk/',
+            { ids: response.data.industries },
+            { headers }
+          )
+        );
+
+        const [startupData, industriesData] = await Promise.all([startupResponse, industriesResponse]);
+
+        setStartup(startupData.data);
+        setIndustries(industriesData.data);
+      } catch (error) {
         console.error("Error fetching startup details:", error);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchStartupData();
   }, [id]);
 
-  const handleMessageSend = () => {
+  const handleMessageSend = async () => {
     if (message.trim() === '') {
       alert('Please enter a message before sending.');
       return;
     }
 
     const accessToken = localStorage.getItem('accessToken');
-    axios.post('http://localhost:8000/startups/message/', {
-      startup_id: id,
-      content: message,
-    }, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    })
-      .then(response => {
-        alert('Message sent!');
-        setMessage('');
-        setMessageSent(true);
-      })
-      .catch(error => {
-        console.error("Error sending message:", error);
-        alert('Error sending message.');
-      });
+    try {
+      await axios.post(
+        'http://localhost:8000/startups/message/',
+        { startup_id: id, content: message },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      alert('Message sent!');
+      setMessage('');
+      setMessageSent(true);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert('Error sending message.');
+    }
   };
 
   if (loading) {
