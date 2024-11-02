@@ -175,6 +175,16 @@ curl --location 'http://127.0.0.1:8000/api/conversations/6712520301fa3c40d55e068
 ws://127.0.0.1:8000/ws/communications/6712520301fa3c40d55e0683/
 ```
 
+## SSL
+Generate self signed certificate
+```shell
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./ssl/localhost.key -out ./ssl/localhost.crt
+```
+
+Run dev server with SSL
+```shell
+cd forum && python manage.py runserver_plus --cert-file ./ssl/localhost.crt --key-file ./ssl/localhost.key
+```
 
 ## Frontend
 Instructions for Installing React, Dependencies, and Running the React Server

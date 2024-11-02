@@ -1,4 +1,8 @@
+import bleach
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+from communications.models import Message
 
 
 class UserSerializer(serializers.Serializer):
@@ -7,6 +11,10 @@ class UserSerializer(serializers.Serializer):
 
 
 class MessageSerializer(serializers.Serializer):
+    class Meta:
+        model = Message
+        fields = '__all__'
+
     sender = UserSerializer()
     message = serializers.CharField()
     created_at = serializers.DateTimeField(read_only=True)

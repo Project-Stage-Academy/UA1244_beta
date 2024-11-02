@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+import bleach
 
 import channels.layers
 
@@ -8,6 +9,7 @@ from asgiref.sync import async_to_sync
 from cryptography.fernet import Fernet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,7 +33,13 @@ class ConversationApiView(APIView):
                 logger.error(f"Error occurred: {err_msg}")
                 return Response({"error": "Empty request body"}, status=status.HTTP_400_BAD_REQUEST)
 
-            participants = request.data.get("participants")
+            serializer = RoomSerializer(data=request.data)
+
+            if not serializer.is_valid():
+                logger.error(f"Validation error: {serializer.errors}")
+                return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            participants = serializer.validated_data.get("participants")
 
             if not participants:
                 err_msg = "Missing 'participants' key in request body"
@@ -69,6 +77,7 @@ class ConversationApiView(APIView):
 
 
 class MessageApiView(APIView):
+    permission_classes = [IsAuthenticated]
     """
     API endpoint to send message
     """
@@ -92,6 +101,9 @@ class MessageApiView(APIView):
             user = get_object_or_404(User, user_id=user_id)
 
             text = request.data.get("text")
+
+            text = bleach.clean(text)
+
             encrypted_text = cipher.encrypt(text.encode()).decode()
 
             message = Message(sender={"user_id": str(user.user_id), "username": user.username}, message = encrypted_text)
@@ -133,6 +145,7 @@ class MessageApiView(APIView):
                 except Exception as e:
                     logger.error(f'Failed to send notification to room {room.id}: {str(e)}')
 
+            logger.info(f'Message sent by {request.user.username}')
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 
         except Exception as e:
