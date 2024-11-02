@@ -9,7 +9,6 @@ from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
@@ -186,7 +185,7 @@ class ActivateAccountView(APIView):
                 user.active_role = Role.objects.get(name='unassigned')
 
             user.save()
-            send_welcome_email.delay(user.user_id)
+            send_welcome_email.apply_async(args=[user.user_id])
 
             return Response({'message': 'Account successfully activated'}, status=status.HTTP_200_OK)
 
@@ -426,6 +425,7 @@ class OAuthTokenObtainPairView(APIView):
             user.is_active = True  
             user.save()
             logger.info(f"Created new user: {user.email}")
+            send_welcome_email.apply_async(args=[user.user_id])
         else:
             logger.info(f"User found: {user.email}")
         
