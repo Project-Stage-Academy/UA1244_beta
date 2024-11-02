@@ -30,7 +30,6 @@ from django.http import JsonResponse
 
 
 
-
 urlpatterns = [
     # Admin URL
     path('admin/', admin.site.urls),
@@ -42,7 +41,7 @@ urlpatterns = [
     path("communications/", include("communications.urls")),
     path("dashboard/", include("dashboard.urls")),
     path("investors/", include("investors.urls")),
-    path("api/startups/", include("startups.urls")),
+    path("startups/", include("startups.urls")),
     path("notifications/", include("notifications.urls")),
 
 
@@ -70,8 +69,7 @@ urlpatterns = [
     # allauth
     path('accounts/', include('allauth.urls')),
     path('api/token/oauth/', OAuthTokenObtainPairView.as_view(), name='token_obtain_oauth'),
-
-
+    
 
 ]
 

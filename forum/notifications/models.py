@@ -54,6 +54,7 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(blank=True, null=True)  
     redirection_url = models.URLField(blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
 
     def clean(self):
         """
