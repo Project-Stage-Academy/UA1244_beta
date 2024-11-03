@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Welcome to Our Platform</title>
-</head>
-<body>
-    <p>Hello {{ username }},</p>
-    <p>Welcome to our platform! We're glad to have you with us.</p>
-    <p>Feel free to explore and let us know if you have any questions.</p>
-    <p>Best regards,<br>The Team</p>
-</body>
-</html>
+{% autoescape off %}
+Hello {{ username }},
+
+Welcome to our platform! We're glad to have you with us.
+
+Feel free to explore and let us know if you have any questions.
+
+Best regards,
+The Team
+{% endautoescape %}

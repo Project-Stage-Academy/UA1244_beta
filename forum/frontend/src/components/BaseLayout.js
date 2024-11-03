@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../styles/styles.css'; 
+import '../styles/styles.css';
 
 const BaseLayout = ({ children }) => {
   const { isAuthenticated, logout } = useContext(AuthContext);
@@ -15,7 +15,7 @@ const BaseLayout = ({ children }) => {
 
   return (
     <>
-       <nav className="navbar navbar-expand-lg navbar-light bg-light">
+      <nav className="navbar navbar-expand-lg navbar-light bg-light">
         <div className="container">
           <Link className="navbar-brand" to="/">Our Project</Link>
           <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,9 +39,14 @@ const BaseLayout = ({ children }) => {
             </ul>
             <ul className="navbar-nav">
               {isAuthenticated ? (
-                <li className="nav-item">
-                  <button className="btn btn-outline-primary me-2" onClick={handleLogout}>Logout</button>
-                </li>
+                <>
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/user-settings">Settings</Link>
+                  </li>
+                  <li className="nav-item">
+                    <button className="btn btn-outline-primary me-2" onClick={handleLogout}>Logout</button>
+                  </li>
+                </>
               ) : (
                 <>
                   <li className="nav-item">
@@ -69,4 +74,5 @@ const BaseLayout = ({ children }) => {
     </>
   );
 };
+
 export default BaseLayout;

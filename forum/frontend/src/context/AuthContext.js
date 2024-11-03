@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { jwtDecode} from 'jwt-decode';
 import api from '../api'; 
 
@@ -20,34 +20,38 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        const { exp } = jwtDecode(token);
-        if (exp * 1000 < Date.now()) {
-          
-          logout();
-        }
-      }
-    }, 60000); 
-    return () => clearInterval(interval);
-  }, []);
-
-  const login = async (token) => {
-    localStorage.setItem('accessToken', token);
-    setIsAuthenticated(true);
-  };
-
-  const refreshAuthToken = async () => {
+  const refreshAuthToken = useCallback(async () => {
     try {
       const response = await api.post('/api/token/refresh/', { 
         refresh: localStorage.getItem('refreshToken') 
       });
       localStorage.setItem('accessToken', response.data.access);
     } catch (error) {
+      alert('Сесія завершена. Будь ласка, увійдіть ще раз.');
       logout(); 
     }
+  }, []); 
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        const { exp } = jwtDecode(token);
+        const timeRemaining = exp * 1000 - Date.now();
+
+        if (timeRemaining < 5 * 60 * 1000) { 
+          refreshAuthToken();
+        } else if (timeRemaining <= 0) {
+          logout();
+        }
+      }
+    }, 60000); 
+    return () => clearInterval(interval);
+  }, [refreshAuthToken]); 
+
+  const login = async (token) => {
+    localStorage.setItem('accessToken', token);
+    setIsAuthenticated(true);
   };
 
   const logout = () => {

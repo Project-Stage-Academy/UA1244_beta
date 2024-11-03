@@ -13,10 +13,14 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from .models import User, Role
-from .serializers import UserSerializer, LoginSerializer, CustomToken
+from .serializers import UserSerializer, LoginSerializer, CustomToken, UserUpdateSerializer
 from .permissions import IsAdmin, IsOwner, IsInvestor, IsStartup
-from .tasks import send_welcome_email
+from .tasks import send_welcome_email, send_reset_password_email
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +335,7 @@ class LoginAPIView(APIView):
     """
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    throttle_classes = [AnonRateThrottle]
 
     def post(self, request):
         """
@@ -367,6 +372,7 @@ class OAuthTokenObtainPairView(APIView):
     Supports Google as the OAuth provider.
     """
     permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     def post(self, request, *args, **kwargs):
         """
@@ -514,3 +520,124 @@ class OAuthTokenObtainPairView(APIView):
             raise ValueError("Failed to fetch user profile from provider.")
 
         return response.json()
+    
+
+class ResetPasswordRequestView(APIView):
+    """
+    View to handle requests for password reset email generation. 
+    This view accepts a POST request with an email, verifies the user exists, 
+    and enqueues a task to send a password reset email.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+    
+    def post(self, request):
+        """
+        Handle POST request to initiate a password reset email.
+
+        Args:
+            request (Request): The request object containing user email.
+
+        Returns:
+            Response: A message indicating success or error response if email is invalid.
+        """
+        logger.info("Entered ResetPasswordRequestView post method.")
+        email = request.data.get('email')
+        logger.info(f"Requested email: {email}")
+        
+        try:
+            user = User.objects.get(email=email)
+            logger.info(f"Queueing password reset email for user {user.email}")
+            send_reset_password_email.delay(user.user_id)
+            logger.info(f"Password reset email queued for {user.email}.")
+
+            return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            logger.warning(f"Password reset requested for non-existing email: {email}.")
+            return create_error_response("User with this email does not exist.", status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {email}: {e}")
+            return create_error_response("Failed to send password reset email.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ResetPasswordConfirmView(APIView):
+    """
+    View to confirm password reset using a UID and token. 
+    This view accepts a POST request with a UID, token, and new password, 
+    verifies the token, and resets the user's password.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request, uidb64, token):
+        """
+        Handle POST request to reset the password for a given user.
+
+        Args:
+            request (Request): The request object containing the new password.
+            uidb64 (str): Base64 encoded user ID.
+            token (str): Password reset token.
+
+        Returns:
+            Response: A message indicating success or error response if token is invalid.
+        """
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+            if default_token_generator.check_token(user, token):
+                password = request.data.get('password')
+                user.set_password(password)
+                user.save()
+                logger.info(f"Password reset successfully for user ID: {user.user_id}.")
+                return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+            else:
+                logger.warning(f"Invalid or expired token for user ID: {user.user_id}.")
+                return create_error_response("Invalid or expired token.", status.HTTP_400_BAD_REQUEST)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
+            logger.error(f"Invalid token for password reset: {e}")
+            return create_error_response("Invalid token.", status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Failed to reset password: {e}")
+            return create_error_response("Failed to reset password.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class UserUpdateView(APIView):
+    """
+    API endpoint to retrieve and update user information, excluding the role.
+
+    Permissions:
+        Requires the user to be authenticated (IsAuthenticated).
+
+    Methods:
+        get: Retrieves the authenticated user's information.
+        put: Updates the authenticated user's information based on provided data.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Retrieve user information.
+
+        Returns:
+            Response: A DRF Response object containing the user's information
+                      in serialized form and a 200 OK status code.
+        """
+        serializer = UserUpdateSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """
+        Update user information.
+
+        Args:
+            request (Request): The request object containing updated user data.
+
+        Returns:
+            Response: A DRF Response object with the updated user data if valid,
+                      or an error message if validation fails.
+        """
+        serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return create_error_response(serializer.errors, status.HTTP_400_BAD_REQUEST)
