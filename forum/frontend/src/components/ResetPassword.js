@@ -7,6 +7,7 @@ const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [isSuccessful, setIsSuccessful] = useState(false); 
   const { uidb64, token } = useParams();
   const navigate = useNavigate();
 
@@ -32,38 +33,55 @@ const ResetPassword = () => {
     }
     try {
       await api.post(`reset_password_confirm/${uidb64}/${token}/`, { password });
-      setMessage("Password has been reset successfully. Redirecting to login...");
-      setTimeout(() => navigate('/login'), 3000);
+      setMessage("Password has been reset successfully.");
+      setIsSuccessful(true); 
     } catch (error) {
-      setMessage("Failed to reset password. The link may be invalid or expired.");
+      if (error.response && error.response.status === 400) {
+        setMessage("Failed to reset password. The link may be invalid or expired.");
+      } else {
+        setMessage("An error occurred while resetting the password. Please try again.");
+      }
     }
+  };
+
+  const handleNavigateToLogin = () => {
+    navigate('/login');
   };
 
   return (
     <div className="reset-password-container">
       <h2>Set New Password</h2>
       {message && <div className="alert alert-info">{message}</div>}
-      <form onSubmit={handleResetPassword}>
-        <input
-          type="password"
-          placeholder="New Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="form-group"
-        />
-        <input
-          type="password"
-          placeholder="Confirm New Password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          className="form-group"
-        />
-        <button type="submit" className="btn btn-primary">Reset Password</button>
-      </form>
+      {isSuccessful ? (
+        <button onClick={handleNavigateToLogin} className="btn btn-primary">
+          Go to Login
+        </button>
+      ) : (
+        <form onSubmit={handleResetPassword}>
+          <label>New Password</label>
+          <input
+            type="password"
+            placeholder="New Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="form-group"
+          />
+          <label>Confirm New Password</label>
+          <input
+            type="password"
+            placeholder="Confirm New Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="form-group"
+          />
+          <button type="submit" className="btn btn-primary">Reset Password</button>
+        </form>
+      )}
     </div>
   );
 };
 
 export default ResetPassword;
+

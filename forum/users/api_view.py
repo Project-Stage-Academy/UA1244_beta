@@ -560,6 +560,28 @@ class ResetPasswordRequestView(APIView):
             return create_error_response("Failed to send password reset email.", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def validate_password_policy(password):
+    """
+    Validates the password against predefined complexity requirements.
+
+    Args:
+        password (str): The password to validate.
+
+    Returns:
+        str: An error message if validation fails, or an empty string if validation passes.
+    """
+    if len(password) < 8:
+        return "Password must be at least 8 characters long."
+    if not any(char.isupper() for char in password):
+        return "Password must contain at least one uppercase letter."
+    if not any(char.islower() for char in password):
+        return "Password must contain at least one lowercase letter."
+    if not any(char.isdigit() for char in password):
+        return "Password must contain at least one number."
+    if not any(char in "!@#$%^&*()-_=+[{]}|;:'\",<.>/?`~" for char in password):
+        return "Password must contain at least one special character."
+    return ""
+
 class ResetPasswordConfirmView(APIView):
     """
     View to confirm password reset using a UID and token. 
@@ -572,12 +594,12 @@ class ResetPasswordConfirmView(APIView):
     def post(self, request, uidb64, token):
         """
         Handle POST request to reset the password for a given user.
-
+        
         Args:
             request (Request): The request object containing the new password.
             uidb64 (str): Base64 encoded user ID.
             token (str): Password reset token.
-
+        
         Returns:
             Response: A message indicating success or error response if token is invalid.
         """
@@ -586,6 +608,12 @@ class ResetPasswordConfirmView(APIView):
             user = User.objects.get(pk=uid)
             if default_token_generator.check_token(user, token):
                 password = request.data.get('password')
+            
+                validation_error = validate_password_policy(password)
+                if validation_error:
+                    logger.warning(f"Password reset failed due to password policy for user ID: {user.user_id}.")
+                    return create_error_response(validation_error, status.HTTP_400_BAD_REQUEST)
+
                 user.set_password(password)
                 user.save()
                 logger.info(f"Password reset successfully for user ID: {user.user_id}.")
