@@ -96,9 +96,15 @@ class MessageApiView(APIView):
 
             # Send websocket message
             channel_layer = channels.layers.get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
-            )
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
+                )
+                logger.info(f'Message sent to: chat_{str(conversation_id)}')
+
+            except Exception as e:
+                logger.error(f'Failed to send message to: chat_{str(conversation_id)}: {str(e)}')
+
 
             room = Room.objects(id=conversation_id).first()
 
@@ -113,9 +119,14 @@ class MessageApiView(APIView):
                     created_at=datetime.now()
                 )
 
-                async_to_sync(channel_layer.group_send)( f"{str(receiver.user_id)}", {
-                    "type": "notification.message",
-                    "notification": NotificationSerializer(notification).data})
+                try:
+                    async_to_sync(channel_layer.group_send)(f"{str(receiver.user_id)}", {
+                        "type": "notification.message",
+                        "notification": NotificationSerializer(notification).data})
+                    logger.info(f'Notification sent to room: chat_{room.id}')
+
+                except Exception as e:
+                    logger.error(f'Failed to send notification to room {room.id}: {str(e)}')
 
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 
