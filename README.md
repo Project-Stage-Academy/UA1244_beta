@@ -186,6 +186,11 @@ Run dev server with SSL
 cd forum && python manage.py runserver_plus --cert-file ./ssl/localhost.crt --key-file ./ssl/localhost.key
 ```
 
+## Security Audit
+```shell
+bandit -r forum
+```
+
 ## Frontend
 Instructions for Installing React, Dependencies, and Running the React Server
 
