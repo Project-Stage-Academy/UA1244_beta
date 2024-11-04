@@ -4,7 +4,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Startup, Investor, InvestorFollow
+from notifications.models import Notification
 from rest_framework.permissions import IsAuthenticated
+from .serializers import NotificationSerializer
 from django.db.utils import IntegrityError as DBIntegrityError
 
 
@@ -17,6 +19,36 @@ def investors(request):
         return HttpResponse("Not implemented")
     except Exception as e:
         logger.error(f"Error occurred: {e}")
+
+class InvestorNotificationsAPIView(APIView):
+    """
+    API view to retrieve unread notifications for an authenticated investor.
+
+    This view retrieves all unread notifications for the currently authenticated 
+    investor, ordered by the most recent notification first. It requires the 
+    user to be authenticated.
+
+    Attributes:
+        permission_classes (list): Ensures that only authenticated users can access this view.
+
+    Methods:
+        get(request):
+            Retrieves unread notifications for the authenticated investor.
+            Returns a serialized list of notifications with HTTP status 200 if 
+            notifications are found.
+            Returns an error message with HTTP status 404 if no notifications exist.
+    """
+    
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            investor = Investor.objects.get(user=request.user)
+            notifications = Notification.objects.filter(investor=investor, is_read=False).order_by('-date_time')
+            serializer = NotificationSerializer(notifications, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Notification.DoesNotExist:
+            return Response({"error": "No notifications found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class SaveStartupView(APIView):

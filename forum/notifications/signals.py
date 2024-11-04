@@ -42,14 +42,3 @@ def create_project_deleted_notification(sender, instance, **kwargs):
 #             f"Investor '{instance.investor.name}' has followed project '{instance.project.name}'.",
 #             initiator='investor'
 #         )
-
-@receiver(post_save, sender=Startup)
-def create_startup_profile_update_notification(sender, instance, created, **kwargs):
-    if not created:
-        create_notification_task.delay(
-            'startup', 
-            instance.id, 
-            'startup_profile_update', 
-            f"Startup '{instance.name}' has updated its profile.",
-            initiator='startup'
-        )
