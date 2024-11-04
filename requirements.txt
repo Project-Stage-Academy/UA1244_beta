@@ -46,7 +46,6 @@ Pillow==10.4.0
 vine==5.1.0
 wcwidth==0.2.13
 redis==5.1.1
-pillow==10.4.0
 django-channels==0.7.0
 daphne==4.1.2
 channels[daphne]~=4.0.0
