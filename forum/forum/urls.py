@@ -24,7 +24,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from users.api_view import ActivateAccountView, SignOutView, OAuthTokenObtainPairView
+from users.api_view import ActivateAccountView, SignOutView, OAuthTokenObtainPairView, ResetPasswordRequestView, ResetPasswordConfirmView
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 
@@ -65,6 +65,9 @@ urlpatterns = [
     path('reset_password_sent/', auth_views.PasswordResetDoneView.as_view(), name ='password_reset_done'),
     path('reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
     path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
+    path('api/custom_reset_password/', ResetPasswordRequestView.as_view(), name='reset_password_request'),
+    path('reset_password_confirm/<uidb64>/<token>/', ResetPasswordConfirmView.as_view(), name='reset_password_confirm'),
+
 
     # allauth
     path('accounts/', include('allauth.urls')),

@@ -73,6 +73,7 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'users.User'
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -80,10 +81,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
     'allauth.account.middleware.AccountMiddleware',
 ]
+
+
 
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  
@@ -195,10 +197,13 @@ REST_FRAMEWORK = {
     
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
     ],
      
      'DEFAULT_THROTTLE_RATES': {
-        'anon': '1000/day',
+        'anon': '10/min',
+        'user': '20/min',
+
     },
 }
 
@@ -285,6 +290,7 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 # New setting for retrying broker connections on startup (for Celery 6.0)
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
 
 # Logging configuration
 LOG_FILE_PATH = os.path.join('logs', 'forum.log')
@@ -382,7 +388,7 @@ CHANNEL_LAYERS = {
 
 
 # CORS FOR REACT
-
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -392,6 +398,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000", 
 ]
+
+
 
 
 SITE_ID = 1
@@ -430,4 +438,5 @@ SOCIALACCOUNT_ADAPTER = 'users.adapter.CustomSocialAccountAdapter'
 
 LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
 SOCIALACCOUNT_LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
+
 

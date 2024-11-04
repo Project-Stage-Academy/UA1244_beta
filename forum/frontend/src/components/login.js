@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; 
 import { AuthContext } from '../context/AuthContext'; 
 import '../styles/login.css';
 import api from '../api';
@@ -24,27 +24,20 @@ const Login = () => {
     setError('');
     setSuccess('');
 
-    api.post('/api/v1/login/', {  
-      email: email,
-      password: password,
-    })
-    .then(response => {
-      if (response.status === 200) {
-        login(response.data.access);
-        setSuccess('Login successful! Redirecting...');
-        setTimeout(() => navigate('/select-role'), 2000); // Redirect after 2 seconds
-      }
-    })
-    .catch(error => {
-      const errorMessage = error.response?.data?.non_field_errors || 
-                           error.response?.data?.email || 
-                           error.response?.data?.password || 
-                           'Invalid credentials. Please check your email and password.';
-      setError(errorMessage);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
+    api.post('/api/v1/login/', { email, password })
+      .then(response => {
+        if (response.status === 200) {
+          login(response.data.access);
+          setSuccess('Login successful! Redirecting...');
+          setTimeout(() => navigate('/select-role'), 2000);
+        }
+      })
+      .catch(error => {
+        setError('Invalid credentials. Please try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const handleSubmit = (e) => {
@@ -79,13 +72,12 @@ const Login = () => {
         </button>
       </form>
       <div className="oauth-buttons">
-        <button
-          type="button"
-          className="btn btn-google"
-          onClick={reachGoogle}
-        >
+        <button type="button" className="btn btn-google" onClick={reachGoogle}>
           <i className="fab fa-google"></i> Login with Google
         </button>
+      </div>
+      <div className="forgot-password-link">
+        <Link to="/reset_password_request">Forgot password?</Link>
       </div>
     </div>
   );

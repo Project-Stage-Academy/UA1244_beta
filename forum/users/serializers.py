@@ -94,6 +94,23 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
+    """
+    Serializer for user login. Validates the user's email and password 
+    and authenticates the user if the credentials are correct.
+    
+    Fields:
+        email (EmailField): The user's email, required for login.
+        password (CharField): The user's password, required for login.
+    
+    Methods:
+        validate(data):
+            Validates that the email exists in the database and checks if the provided
+            password matches the stored password. Raises an AuthenticationFailed error 
+            if the email or password is incorrect.
+    
+    Raises:
+        AuthenticationFailed: If the email does not exist or the password is incorrect.
+    """
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
@@ -102,6 +119,18 @@ class LoginSerializer(serializers.Serializer):
         fields = ['email', 'password']
 
     def validate(self, data):
+        """
+        Validates the email and password credentials.
+
+        Args:
+            data (dict): Contains 'email' and 'password' keys.
+
+        Returns:
+            dict: Contains the 'user' instance if authentication is successful.
+
+        Raises:
+            AuthenticationFailed: If the email does not exist or the password is incorrect.
+        """
         email = data.get("email")
         password = data.get("password")
 
@@ -113,5 +142,30 @@ class LoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise AuthenticationFailed("Incorrect password.")
         
-    
         return {"user": user}
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating user information. Provides fields for updating
+    basic user details, excluding the role, which is read-only.
+    
+    Fields:
+        username (CharField): The user's unique username.
+        first_name (CharField): The user's first name.
+        last_name (CharField): The user's last name.
+        email (EmailField): The user's email address.
+        phone (PhoneNumberField): The user's phone number.
+        active_role (ReadOnlyField): The user's active role, read-only.
+    
+    Meta:
+        model (Model): Specifies the User model as the model to be used.
+        fields (tuple): Specifies fields to be serialized.
+        read_only_fields (tuple): Specifies fields that are read-only.
+    """
+    active_role = serializers.ReadOnlyField(source='active_role.name')
+
+    class Meta:
+        model = User
+        fields = ('username', 'first_name', 'last_name', 'email', 'phone', 'active_role')
+        read_only_fields = ('active_role',)

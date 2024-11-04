@@ -67,3 +67,19 @@
 .btn-google:hover  {
   opacity: 0.9;
 }
+
+
+.forgot-password-link {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.forgot-password-link a {
+  color: #1a73e8;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.forgot-password-link a:hover {
+  text-decoration: underline;
+}
