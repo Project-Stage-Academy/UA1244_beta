@@ -1,12 +1,14 @@
 import logging
 
 from django.shortcuts import get_object_or_404, render
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import IntegrityError
 
 from rest_framework import generics, viewsets, status
 from rest_framework.response import Response
+from .permissions import IsStartup, IsInvestor
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
@@ -14,23 +16,67 @@ from .models import Startup
 from investors.models import Investor, InvestorFollow
 from .serializers import StartupSerializer
 
+
+
+
 class StartupViewSet(viewsets.ModelViewSet):
     """
     API view to handle CRUD operations for Startup instances.
-    This view provides GET, POST, PUT methods 
-    to list, create, update startup profiles. 
-    It requires the user to be authenticated.
-    
+    This view provides GET, POST, PUT, DELETE methods for managing 
+    startup profiles in the system.This view set ensures that only 
+    authenticated users with the correct role can perform 
+    specific actions: investors have read access and startups have create, 
+    update, and delete access. The view set includes custom error handling
+    for database operations and supports filtering and search functionality.
+
     Attributes:
-        queryset (QuerySet): A queryset of all Startup instances.
-        serializer_class (Serializer): The serializer used to validate 
-        and serialize data.
-        permission_classes (list): A list of permission classes 
-        that determine access rights.
+        queryset (QuerySet): The default queryset for retrieving Startup instances.
+        serializer_class (Serializer): The serializer class used to validate and 
+        serialize Startup data.
+
+    Methods:
+        get_permissions(): Determines the permissions required for each action.
+            Investors can access list and retrieve actions; startups can perform
+            create, update, and delete actions.
+        
+        create(): Handles creating a new startup profile. It includes custom error 
+            handling for validation and integrity errors, providing appropriate 
+            error messages.
+
+        update(): Handles updating an existing startup profile, with custom error
+            handling for validation and integrity errors.
+
+        destroy(): Handles deletion of a startup profile, with error handling for
+            cases where the instance does not exist or cannot be deleted due to 
+            database integrity constraints.
+
+        retrieve(): Retrieves a single startup profile by its ID. Returns a 404 error if 
+            the startup is not found.
+
+        list(): Retrieves a list of all startup profiles to the investor. Includes error
+            handling to return appropriate messages in case of any unexpected issues.
+
+        get_queryset(): Retrieves the queryset based on the user's role and query parameters.
+            Only investors can access this data. Supports filtering by company name and 
+            industry and includes a search functionality for company names.
+            - Search functionality allows partial matching of `company_name`.
+            - Filtering options include:
+                * `company_name` (exact or partial match)
+                * `industry_name` (name of the industry associated with the startup)
     """
     queryset = Startup.objects.all()
     serializer_class = StartupSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsInvestor]
+        else:
+            permission_classes = [IsStartup]
+
+        return [permission() for permission in permission_classes]
     
     def create(self, request, *args, **kwargs):
         """
@@ -101,6 +147,90 @@ class StartupViewSet(viewsets.ModelViewSet):
         except IntegrityError:
             return Response({"detail": "Unable to delete the startup due to integrity constraints."},
                              status=status.HTTP_400_BAD_REQUEST)
+    
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a specific Startup instance by ID.
+        
+        This method handles the retrieval of a startup profile.
+        It returns the startup data or an error message if any error occures.
+        Args:
+            request (Request): The request object to retrieve the startup.
+
+        Returns:
+            Response: A response containing the startup data or error details.
+        """
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except ObjectDoesNotExist:
+            return Response({"detail": "Startup not found."}, status=status.HTTP_404_NOT_FOUND)
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            return Response({"detail": "Database integrity error occurred."},
+                        status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def list(self, request, *args, **kwargs):
+        """
+        List all Startup instances.
+        
+        This method retrieves a list of all startups and handles any errors that
+        may occur during retrieval.
+
+        Args:
+            request (Request): The request object to list startups.
+
+        Returns:
+            Response: A response containing the list of startups or error details.
+        """
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            return Response({"detail": "Database integrity error occurred."},
+                        status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    def get_queryset(self):
+        """
+        Retrieves the queryset of startup profiles based on user role and query parameters.
+        Search and filtering options are provided. Custom error handling is included to 
+        manage permission issues.
+
+        Returns:
+            QuerySet: Filtered and searchable queryset for the list and retrieve actions.
+
+        Raises:
+            PermissionDenied: If the user is not authenticated or does not have the 'investor' role.
+        """
+        if self.action in ['list', 'retrieve']:
+            if not self.request.user.is_authenticated or self.request.user.active_role.name != 'investor':
+                raise PermissionDenied("You do not have permission to view this data.")
+        
+        queryset = self.queryset
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(company_name__icontains=search)
+
+        company_name = self.request.query_params.get('company_name', None)
+        industry = self.request.query_params.get('industry', None)
+
+        if company_name:
+            queryset = queryset.filter(company_name__icontains=company_name)
+        industry_name = self.request.query_params.get('industry_name', None)
+        if industry_name:
+            queryset = queryset.filter(industries__name__icontains=industry_name)
+
+        return queryset
+
 
 logger = logging.getLogger(__name__)
 
