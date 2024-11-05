@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -9,7 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Startup, Industry, Location, FundingStage
-from users.models import User
+from users.models import User, Role
 
 
 User = get_user_model()
@@ -19,6 +20,8 @@ class StartupTestBase:
     Initializes test data, including a user, industry, and location.
     """
     def create_common_test_data(self):
+        self.startup_role = Role.objects.create(name='startup')
+
         user = User.objects.create_user(
             email='defaultuser@example.com',
             password='password123',
@@ -27,6 +30,7 @@ class StartupTestBase:
             last_name='User',
         )
         user.is_active = True
+        user.change_active_role('startup')
         user.save()
 
         industry = Industry.objects.create(name='Tech')
@@ -217,5 +221,109 @@ class StartupProfileTest(TestCase, StartupTestBase):
 
         self.assertEqual(profile.company_name, "Test Company1")
         self.assertEqual(self.user.username, "defaultuser")
+        self.assertIn(self.industry1, profile.industries.all())
 
-        self.assertIn(self.industry1, profile.industries.all()) 
+
+class StartupViewSetTests(APITestCase, StartupTestBase):
+    """
+    Unit tests for the StartupViewSet functionality.
+    This test class verifies the retrieval and listing of startup profiles using 
+    Django's APITestCase to simulate authenticated requests and data retrieval.
+
+    Methods:
+        setUp(): Initializes test data, including a user with 'investor' role, 
+        startup profiles.
+    
+        test_retrieve_startup_success(): Tests retrieving an existing startup profile
+        by sending a GET request to the detail view endpoint and checking the response 
+        status and data accuracy.
+    
+        test_retrieve_startup_not_found(): Tests retrieving a non-existent startup profile 
+        by sending a GET request with a random UUID, expecting a 404 response.
+
+        test_list_startups_success(): Tests listing all available startup profiles by 
+        sending a GET request to the list view endpoint and validating the response data.
+
+        test_search_startup_by_company_name(): Tests searching startup profiles by a 
+        partial company name by sending a GET request with a search query parameter.
+    
+        test_filter_startup_by_exact_company_name(): Tests filtering startup profiles 
+        by an exact company name by sending a GET request with a company_name query 
+        parameter.
+    
+        test_filter_startup_by_industry_name(): Tests filtering startup profiles based on 
+        industry by sending a GET request with an industry_name query parameter. 
+"""
+    def setUp(self):
+
+        self.user, self.industry1, self.location = self.create_common_test_data()
+        self.industry2 = Industry.objects.create(name='finance')
+        investor_role = Role.objects.create(name='investor')
+
+        self.user.change_active_role('investor')
+        self.client.force_authenticate(user=self.user)
+
+        self.startup = Startup.objects.create(
+            user_id=self.user.user_id,
+            company_name="EcoSolutionss",
+            required_funding=7150000.00,
+            funding_stage=FundingStage.SEED,
+            number_of_employees=30,
+            location=self.location,
+            description="Eco-friendly solutions provider",
+            total_funding=20000.00,
+            website="https://www.ecosolutions.com",
+        ) 
+        self.startup2 = Startup.objects.create(
+            user_id=self.user.user_id,
+            company_name="Solar",
+            required_funding=1000000,
+            location=self.location,
+        )
+        self.startup.industries.set([self.industry1])
+        self.startup2.industries.set([self.industry2])
+
+        self.list_url = reverse('startup-list')
+        self.retrieve_url = reverse('startup-detail', args=[self.startup.startup_id])
+
+    def test_retrieve_startup_success(self):
+
+        response = self.client.get(self.retrieve_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['company_name'], self.startup.company_name)
+
+    def test_retrieve_startup_not_found(self):
+
+        non_existent_id = uuid.uuid4()
+        url = reverse('startup-detail', args=[non_existent_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['detail'], "No Startup matches the given query.")
+
+    def test_list_startups_success(self):
+
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(response.data) > 0)
+        self.assertEqual(response.data[0]['company_name'], self.startup.company_name)
+
+    def test_search_startup_by_company_name(self):
+
+        response = self.client.get(self.list_url, {'search': 'Eco'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['company_name'], "EcoSolutionss")
+
+    def test_filter_startup_by_exact_company_name(self):
+
+        response = self.client.get(self.list_url, {'company_name': 'Solar'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['company_name'], "Solar")
+
+    def test_filter_startup_by_industry_name(self):
+
+        response = self.client.get(self.list_url, {'industry_name': self.industry2.name})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(response.data) >= 1)
+        self.assertIn(response.data[0]['company_name'], ["EcoSolutionss", "Solar"])
