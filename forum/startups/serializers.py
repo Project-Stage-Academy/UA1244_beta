@@ -1,6 +1,8 @@
 from rest_framework import serializers
+from django_elasticsearch_dsl_drf.serializers import DocumentSerializer
 from .models import Startup, Industry
 from projects.serializers import ProjectSerializer
+from .document import StartupDocument
 
 class StartupSerializer(serializers.ModelSerializer):
     """
@@ -81,3 +83,26 @@ class IndustrySerializer(serializers.ModelSerializer):
         if Industry.objects.filter(name__iexact=value).exists():
             raise serializers.ValidationError("This industry name already exists (case-insensitive match).")
         return value
+    
+
+class StartupDocumentSerializer(DocumentSerializer):
+    """
+    Serializer for Startup Elasticsearch document.
+
+    Provides JSON format for StartupDocument fields in API responses.
+    """
+
+    class Meta:
+        document = StartupDocument  
+        fields = [
+            'company_name',
+            'required_funding',
+            'funding_stage',
+            'number_of_employees',
+            'description',
+            'total_funding',
+            'website',
+            'created_at',
+            'location',  
+            'industries',  
+        ]

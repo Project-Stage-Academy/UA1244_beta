@@ -1,10 +1,11 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 from .models import Project
 from .tasks import send_project_update
+from .document import ProjectDocument
 
 
 @receiver(post_save, sender=Project)
@@ -57,3 +58,30 @@ def project_updated(sender, instance, created, **kwargs):
             }
         }
     )
+
+
+
+@receiver(post_save, sender=Project)
+def update_project_document(sender, instance, **kwargs):
+    """
+    Signal to update the Elasticsearch document for the Project model when an instance is saved.
+
+    Args:
+        sender: The model class.
+        instance: The instance being saved.
+        kwargs: Additional keyword arguments.
+    """
+    ProjectDocument().update(instance)
+
+@receiver(post_delete, sender=Project)
+def delete_project_document(sender, instance, **kwargs):
+    """
+    Signal to delete the Elasticsearch document for the Project model when an instance is deleted.
+
+    Args:
+        sender: The model class.
+        instance: The instance being deleted.
+        kwargs: Additional keyword arguments.
+    """
+    ProjectDocument().delete(instance)
+    

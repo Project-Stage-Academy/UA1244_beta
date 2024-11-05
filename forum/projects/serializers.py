@@ -2,10 +2,12 @@ from rest_framework import serializers
 from datetime import date
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from django_elasticsearch_dsl_drf.serializers import DocumentSerializer
 from django.db import models, transaction
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from .models import Project, Subscription
 from startups.models import Startup
+from .document import ProjectDocument
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -114,3 +116,27 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             subscription = Subscription.objects.create(**validated_data)
 
         return subscription
+
+class ProjectDocumentSerializer(DocumentSerializer):
+    """
+    Serializer for Project Elasticsearch document.
+
+    Provides JSON format for ProjectDocument fields in API responses.
+    """
+
+    class Meta:
+        document = ProjectDocument  
+        fields = (
+            'title',
+            'description',
+            'required_amount',
+            'status',
+            'planned_start_date',
+            'actual_start_date',
+            'planned_finish_date',
+            'actual_finish_date',
+            'created_at',
+            'last_update',
+            'industry',
+            'startup',  
+        )
