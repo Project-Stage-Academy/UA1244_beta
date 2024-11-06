@@ -1,13 +1,18 @@
-from django.test import TestCase
-from django.urls import reverse
-from users.models import Role, User
+"""
+Tests for user and role models.
+"""
+
 from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch
+from django.test import TestCase
+from django.urls import reverse
+from users.models import Role, User
 
 
 class RoleTests(TestCase):
-    
+    """Tests for user roles."""
+
     @classmethod
     def setUpTestData(cls):
         cls.unassigned_role = Role.objects.create(name='unassigned')
@@ -25,7 +30,11 @@ class RoleTests(TestCase):
             last_name='User',
             username='testuser'
         )
-        self.assertEqual(user.active_role.name, 'unassigned', "The user was not assigned the 'unassigned' role by default.")
+        self.assertEqual(
+            user.active_role.name,
+            'unassigned',
+            "The user was not assigned the 'unassigned' role by default."
+        )
 
     def test_change_user_active_role(self):
         """
@@ -41,10 +50,18 @@ class RoleTests(TestCase):
         self.assertEqual(user.active_role.name, 'unassigned')
 
         user.change_active_role('startup')
-        self.assertEqual(user.active_role.name, 'startup', "Failed to change the role to 'startup'.")
+        self.assertEqual(
+            user.active_role.name,
+            'startup',
+            "Failed to change the role to 'startup'."
+        )
 
         user.change_active_role('investor')
-        self.assertEqual(user.active_role.name, 'investor', "Failed to change the role to 'investor'.")
+        self.assertEqual(
+            user.active_role.name,
+            'investor',
+            "Failed to change the role to 'investor'."
+        )
 
     def test_invalid_role_change(self):
         """
@@ -57,7 +74,10 @@ class RoleTests(TestCase):
             last_name='Role',
             username='invalidrole'
         )
-        with self.assertRaises(ValueError, msg="Role 'nonexistent' does not exist."):
+        with self.assertRaises(
+            ValueError,
+            msg="Role 'nonexistent' does not exist."
+        ):
             user.change_active_role('nonexistent')
 
     def test_user_has_default_unassigned_role_after_creation(self):
@@ -72,7 +92,11 @@ class RoleTests(TestCase):
             last_name='User'
         )
         self.assertIsNotNone(user.active_role)
-        self.assertEqual(user.active_role.name, 'unassigned', "The user was not assigned the 'unassigned' role.")
+        self.assertEqual(
+            user.active_role.name,
+            'unassigned',
+            "The user was not assigned the 'unassigned' role."
+        )
 
     def test_user_creation_with_explicit_role(self):
         """
@@ -86,10 +110,15 @@ class RoleTests(TestCase):
             last_name='User',
             active_role=self.startup_role
         )
-        self.assertEqual(user.active_role.name, 'startup', "Failed to assign the 'startup' role to the user during creation.")
+        self.assertEqual(
+            user.active_role.name,
+            'startup',
+            "Failed to assign the 'startup' role to the user during creation."
+        )
 
 
 class RolePermissionTests(APITestCase):
+    """Tests for role-based permissions."""
 
     @classmethod
     def setUpTestData(cls):
@@ -151,13 +180,8 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(response.status_code, 401)
 
 
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase
-from unittest.mock import patch
-from users.models import User
-
 class OAuthTokenObtainPairViewTests(APITestCase):
+    """Tests for OAuth token obtainment."""
 
     def authenticate_with_oauth(self, provider, code):
         """Helper function to simulate OAuth token retrieval."""
@@ -231,3 +255,4 @@ class OAuthTokenObtainPairViewTests(APITestCase):
         response = self.authenticate_with_oauth('google', 'mock_code')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
+
