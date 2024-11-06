@@ -26,6 +26,7 @@ class StartupDocument(Document):
             'name': fields.TextField(),
         }
     )
+    number_of_employees = fields.IntegerField() 
 
     class Index:
         name = 'startups'
@@ -33,11 +34,10 @@ class StartupDocument(Document):
     class Django:
         model = Startup
         fields = [
-            'required_funding',      
-            'funding_stage',          
-            'number_of_employees',   
-            'description',           
-            'total_funding',         
-            'website',                
-            'created_at',            
+            'required_funding',
+            'funding_stage',
+            'description',
+            'total_funding',
+            'website',
+            'created_at',
         ]

@@ -8,17 +8,17 @@ def create_project_update_notification(sender, instance, created, **kwargs):
     if created:
         create_notification_task.delay(
             'project', 
-            instance.id, 
+            instance.project_id, 
             'project_created', 
-            f"Project '{instance.name}' has been created.",
+            f"Project '{instance.title}' has been created.",
             initiator='system'
         )
     else:
         create_notification_task.delay(
             'project', 
-            instance.id, 
+            instance.project_id, 
             'project_profile_change', 
-            f"Project '{instance.name}' has been updated.",
+            f"Project '{instance.title}' has been updated.",
             initiator='project'
         )
 
@@ -26,9 +26,9 @@ def create_project_update_notification(sender, instance, created, **kwargs):
 def create_project_deleted_notification(sender, instance, **kwargs):
     create_notification_task.delay(
         'project', 
-        instance.id, 
+        instance.project_id, 
         'project_deleted', 
-        f"Project '{instance.name}' has been deleted.",
+        f"Project '{instance.title}' has been deleted.",
         initiator='system'
     )
 
