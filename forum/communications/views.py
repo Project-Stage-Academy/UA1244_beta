@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+
 import channels.layers
 
 from asgiref.sync import async_to_sync
@@ -8,8 +10,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from communications.models import Room, Message
-from communications.serializers import RoomSerializer, MessageSerializer
+from communications.models import Room, Message, Notification
+from communications.serializers import MessageSerializer, NotificationSerializer
+from communications.serializers import RoomSerializer
 from users.models import User
 
 
@@ -93,9 +96,37 @@ class MessageApiView(APIView):
 
             # Send websocket message
             channel_layer = channels.layers.get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
-            )
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{str(conversation_id)}", {"type": "chat.message", "message": MessageSerializer(message).data}
+                )
+                logger.info(f'Message sent to: chat_{str(conversation_id)}')
+
+            except Exception as e:
+                logger.error(f'Failed to send message to: chat_{str(conversation_id)}: {str(e)}')
+
+
+            room = Room.objects(id=conversation_id).first()
+
+            receivers = [receiver for receiver in room.participants if receiver.user_id != str(user_id)]
+
+            # Display the filtered users
+            for receiver in receivers:
+                notification = Notification(
+                    user=receiver,
+                    message=message,
+                    is_read=False,
+                    created_at=datetime.now()
+                )
+
+                try:
+                    async_to_sync(channel_layer.group_send)(f"{str(receiver.user_id)}", {
+                        "type": "notification.message",
+                        "notification": NotificationSerializer(notification).data})
+                    logger.info(f'Notification sent to room: chat_{room.id}')
+
+                except Exception as e:
+                    logger.error(f'Failed to send notification to room {room.id}: {str(e)}')
 
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 
