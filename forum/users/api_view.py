@@ -10,9 +10,9 @@ endpoints. The module includes views for both public and authenticated actions.
 """
 
 import os
-import requests
 import logging
 from datetime import timedelta
+import requests
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
