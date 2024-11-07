@@ -1,15 +1,19 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.test import TestCase
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
+from elasticsearch_dsl.connections import connections
+
 
 from uuid import uuid4
 
 from startups.models import Startup
 from .models import ProjectStatus
 from projects.models import Project
+
 
 User = get_user_model()
 
@@ -242,3 +246,96 @@ class UserAcceptanceTests(APITestCase):
 
         response = self.client.post(self.management_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+
+
+class ProjectSearchTestCase(TestCase):
+    """Test case for Project search functionality in Elasticsearch."""
+
+    def setUp(self):
+        """Set up test data for Project search tests."""
+        self.user = User.objects.create_user(username="testuser", email="testuser@example.com", password="testpass")
+        self.startup = Startup.objects.create(
+            user=self.user,
+            company_name="TechCorp",
+            required_funding=200000,
+            funding_stage="Seed",
+            number_of_employees=50,
+            description="A tech startup"
+        )
+        self.project1 = Project.objects.create(
+            startup=self.startup,
+            title="AI Research",
+            description="Research in AI technologies",
+            required_amount=1000000,
+            status="planned"
+        )
+        self.project2 = Project.objects.create(
+            startup=self.startup,
+            title="Healthcare App Development",
+            description="Healthcare technology development",
+            required_amount=500000,
+            status="completed"
+        )
+        connections.create_connection(hosts=['http://localhost:9200'])
+
+    def test_search_project_by_title(self):
+        """Test searching projects by title."""
+        response = self.client.get('/projects/search/', {'search': 'AI'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any(project['title'] == 'AI Research' for project in response.data))
+
+    def test_search_project_by_description(self):
+        """Test searching projects by description."""
+        response = self.client.get('/projects/search/', {'search': 'technology'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any(project['description'] == 'Healthcare technology development' for project in response.data))
+
+    def test_filter_project_by_status(self):
+        """Test filtering projects by status."""
+        response = self.client.get('/projects/search/', {'status': 'completed'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(project['status'] == 'completed' for project in response.data))
+
+    def test_filter_project_by_required_amount_range(self):
+        """Test filtering projects by required funding amount range."""
+        response = self.client.get('/projects/search/', {'required_amount__gte': 300000, 'required_amount__lte': 800000})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(300000 <= project['required_amount'] <= 800000 for project in response.data))
+
+    def test_filter_project_by_startup_name(self):
+        """Test filtering projects by associated startup name."""
+        response = self.client.get('/projects/search/', {'startup.company_name': 'TechCorp'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(project['startup']['company_name'] == 'TechCorp' for project in response.data))
+
+    def test_order_projects_by_title_ascending(self):
+        """Test ordering projects by title in ascending order."""
+        response = self.client.get('/projects/search/', {'ordering': 'title'})
+        self.assertEqual(response.status_code, 200)
+        titles = [project['title'] for project in response.data]
+        self.assertEqual(titles, sorted(titles))
+
+    def test_order_projects_by_title_descending(self):
+        """Test ordering projects by title in descending order."""
+        response = self.client.get('/projects/search/', {'ordering': '-title'})
+        self.assertEqual(response.status_code, 200)
+        titles = [project['title'] for project in response.data]
+        self.assertEqual(titles, sorted(titles, reverse=True))
+
+    def test_order_projects_by_required_amount_ascending(self):
+        """Test ordering projects by required funding amount in ascending order."""
+        response = self.client.get('/projects/search/', {'ordering': 'required_amount'})
+        self.assertEqual(response.status_code, 200)
+        amounts = [project['required_amount'] for project in response.data]
+        self.assertEqual(amounts, sorted(amounts))
+
+    def test_order_projects_by_required_amount_descending(self):
+        """Test ordering projects by required funding amount in descending order."""
+        response = self.client.get('/projects/search/', {'ordering': '-required_amount'})
+        self.assertEqual(response.status_code, 200)
+        amounts = [project['required_amount'] for project in response.data]
+        self.assertEqual(amounts, sorted(amounts, reverse=True))
+
+    

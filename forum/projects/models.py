@@ -75,6 +75,8 @@ class Project(models.Model):
     media = models.ForeignKey('Media', on_delete=models.SET_NULL, null=True, related_name='projects')
     history = HistoricalRecords()
 
+    objects = models.Manager()
+
     class Meta:
         verbose_name = 'Project'
         verbose_name_plural = 'Projects'

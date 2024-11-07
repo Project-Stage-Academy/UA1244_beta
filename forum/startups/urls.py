@@ -22,6 +22,6 @@ urlpatterns = [
     path('api/v1/investor/saved-startups/', SavedStartupsListAPIView.as_view(), name='saved_startups_list'),
     path('api/v1/startups/<uuid:startup_id>/unsave/', UnfollowStartupAPIView.as_view(), name='unfollow_startup'),
     path('industries/bulk/', get_industries_bulk, name='industries_bulk'),
-    path('search/', StartupSearchViewSet.as_view({'get': 'list'}), name='startup-search'),
+    path('startups/search/', StartupSearchViewSet.as_view({'get': 'list'}), name='startup-search'),
 ]
 

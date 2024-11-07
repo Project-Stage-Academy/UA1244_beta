@@ -370,13 +370,14 @@ class StartupSearchViewSet(DocumentViewSet):
         'location.city': 'exact',
         'location.country': 'exact',
         'total_funding': {
-            'lookup': 'range'  
+            'lookup': 'range'
         },
     }
     ordering_fields = {
         'company_name': 'company_name.raw',
         'created_at': 'created_at',
-        'total_funding': 'total_funding'
+        'total_funding': 'total_funding',
+        'number_of_employees': 'number_of_employees',
     }
     ordering = ('created_at',)
 
@@ -384,10 +385,10 @@ class StartupSearchViewSet(DocumentViewSet):
         try:
             return super().list(request, *args, **kwargs)
         except ValueError as e:
-            return Response({"error": "Invalid value: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"Invalid value: {e}"}, status=status.HTTP_400_BAD_REQUEST)
         except AttributeError as e:
-            return Response({"error": "Attribute error: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"Attribute error: {e}"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print("Unexpected error in StartupSearchViewSet:")
             print(traceback.format_exc())
-            return Response({"error": "An unexpected error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"An unexpected error occurred: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

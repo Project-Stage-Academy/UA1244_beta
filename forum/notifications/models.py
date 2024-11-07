@@ -1,11 +1,17 @@
+"""
+Models for managing notifications, investor, and startup notification preferences.
+
+These models include Notification for storing various types of notifications related to projects, startups,
+and investors, as well as models for managing notification preferences.
+"""
+
+from datetime import timedelta
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 from projects.models import Project
 from investors.models import Investor
 from startups.models import Startup
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-from datetime import timedelta
-
 
 
 def get_expiration_date():
@@ -14,6 +20,7 @@ def get_expiration_date():
     Returns the current date and time plus 30 days.
     """
     return timezone.now() + timedelta(days=30)
+
 
 class Notification(models.Model):
     """
@@ -43,9 +50,15 @@ class Notification(models.Model):
         ('high', 'High'),
     ]
 
-    project = models.ForeignKey('projects.Project', on_delete=models.SET_NULL, related_name='notifications', null=True)
-    startup = models.ForeignKey('startups.Startup', on_delete=models.SET_NULL, related_name='notifications', null=True)
-    investor = models.ForeignKey('investors.Investor', on_delete=models.SET_NULL, related_name='notifications', null=True)
+    project = models.ForeignKey(
+        Project, on_delete=models.SET_NULL, related_name='notifications', null=True
+    )
+    startup = models.ForeignKey(
+        Startup, on_delete=models.SET_NULL, related_name='notifications', null=True
+    )
+    investor = models.ForeignKey(
+        Investor, on_delete=models.SET_NULL, related_name='notifications', null=True
+    )
     trigger = models.CharField(max_length=55, choices=TRIGGER_CHOICES)
     initiator = models.CharField(max_length=10, choices=INITIATOR_CHOICES)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='low')
@@ -55,6 +68,8 @@ class Notification(models.Model):
     read_at = models.DateTimeField(blank=True, null=True)  
     redirection_url = models.URLField(blank=True, null=True)
     message = models.TextField(blank=True, null=True)
+
+    objects = models.Manager()
 
     def clean(self):
         """
@@ -74,7 +89,9 @@ class Notification(models.Model):
             'startup_profile_update': f'/startups/{self.startup.id}/' if self.startup else None,
             'investor_profile_change': f'/investors/{self.investor.id}/' if self.investor else None,
         }
-        self.redirection_url = redirection_mapping.get(self.trigger, 'http://example.com/fake-url-for-testing/')
+        self.redirection_url = redirection_mapping.get(
+            self.trigger, 'http://example.com/fake-url-for-testing/'
+        )
         
         if not self.redirection_url:
             print('Warning: No associated project, startup, or investor for redirection')
@@ -115,11 +132,15 @@ class StartupNotificationPreferences(models.Model):
     Model to store notification preferences for startups.
     A startup can have multiple notification preferences for various projects.
     """
-    startup = models.ForeignKey(Startup, on_delete=models.CASCADE, related_name='notification_preferences')
+    startup = models.ForeignKey(
+        Startup, on_delete=models.CASCADE, related_name='notification_preferences'
+    )
     email_project_updates = models.BooleanField(default=True)
     push_project_updates = models.BooleanField(default=True)
     email_startup_updates = models.BooleanField(default=True)
     push_startup_updates = models.BooleanField(default=True)
+
+    objects = models.Manager()
 
     def __str__(self):
         """
@@ -133,11 +154,15 @@ class InvestorNotificationPreferences(models.Model):
     Model to store notification preferences for investors.
     An investor can have multiple notification preferences for different startups and projects.
     """
-    investor = models.ForeignKey(Investor, on_delete=models.CASCADE, related_name='notification_preferences')
+    investor = models.ForeignKey(
+        Investor, on_delete=models.CASCADE, related_name='notification_preferences'
+    )
     email_project_updates = models.BooleanField(default=True)
     push_project_updates = models.BooleanField(default=True)
     email_startup_updates = models.BooleanField(default=True)
     push_startup_updates = models.BooleanField(default=True)
+
+    objects = models.Manager()
 
     def __str__(self):
         """

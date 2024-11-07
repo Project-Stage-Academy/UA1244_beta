@@ -1,14 +1,17 @@
+"""
+Custom adapter for handling the saving of users authenticated through social accounts.
+"""
+
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth import get_user_model
 from .tasks import send_welcome_email
 
 User = get_user_model()
 
-
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """
     Custom adapter for handling the saving of users authenticated through social accounts.
-
+    
     This adapter overrides the default `save_user` method to automatically activate
     social account users upon creation and send a welcome email asynchronously.
     """
@@ -36,6 +39,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             user.save()
 
             send_welcome_email.apply_async(args=[user.user_id])
-        except Exception:
-            raise  
+        except Exception as e:
+            raise e
         return user
+    
