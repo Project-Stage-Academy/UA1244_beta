@@ -1,3 +1,7 @@
+"""
+Views for managing notification preferences for startups and investors.
+"""
+
 from django.shortcuts import render, redirect
 from django.http import HttpResponseForbidden
 from django.contrib import messages
@@ -38,9 +42,11 @@ class NotificationPreferencesUpdateView(View):
         if hasattr(user, 'startup'):
             startup = user.startup
             return StartupNotificationPreferences.objects.get_or_create(startup=startup)[0]
-        elif hasattr(user, 'investor'):
+        
+        if hasattr(user, 'investor'):
             investor = user.investor
             return InvestorNotificationPreferences.objects.get_or_create(investor=investor)[0]
+        
         return None
 
     def get(self, request):
@@ -59,9 +65,7 @@ class NotificationPreferencesUpdateView(View):
             return HttpResponseForbidden("Access denied: You are not authorized to update preferences.")
 
         preferences = self.get_user_preferences(request.user)
-        context = {
-            'preferences': preferences,
-        }
+        context = {'preferences': preferences}
         return render(request, 'notifications/preferences.html', context)
 
     def post(self, request):

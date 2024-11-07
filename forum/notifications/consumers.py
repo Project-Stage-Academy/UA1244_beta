@@ -1,3 +1,10 @@
+"""
+WebSocket consumer for handling real-time notifications for authenticated users.
+
+This consumer allows users to receive notifications in real-time via WebSocket.
+Users must be authenticated to connect to the WebSocket server.
+"""
+
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -5,6 +12,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     """
     WebSocket consumer for handling real-time notifications.
     """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initializes the consumer with user and group_name attributes.
+        """
+        super().__init__(*args, **kwargs)
+        self.user = None
+        self.group_name = None
 
     async def connect(self):
         """
@@ -21,12 +36,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-    async def disconnect(self, close_code):
+    async def disconnect(self, _):
         """
         Handles WebSocket disconnection. Removes the user from the notification group.
-
-        Args:
-            close_code (int): The WebSocket close code.
         """
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
@@ -46,11 +58,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         message = event.get('message', '')
 
         try:
-            await self.send(text_data=json.dumps({
-                'message': message
-            }))
+            await self.send(text_data=json.dumps({'message': message}))
         except Exception as e:
             await self.send(text_data=json.dumps({
-                'error': 'An error occurred while sending the notification. Please try again later.',
+                'error': 'An error occurred while sending the notification.',
                 'details': str(e)
             }))

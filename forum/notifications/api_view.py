@@ -1,3 +1,11 @@
+"""
+API views for notifications management.
+
+This module provides API views for managing notifications and notification preferences
+for 'Investor' and 'Startup' roles, including marking notifications as read, 
+deleting notifications, and triggering new notifications.
+"""
+
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -5,12 +13,13 @@ from rest_framework.decorators import action
 from rest_framework.views import APIView
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Notification, StartupNotificationPreferences, InvestorNotificationPreferences, Startup, Investor
+from .models import (
+    Notification, StartupNotificationPreferences, InvestorNotificationPreferences,
+    Startup, Investor
+)
 from .serializers import (
-    NotificationSerializer, 
-    StartupNotificationPrefsSerializer, 
-    InvestorNotificationPrefsSerializer, 
-    TriggerNotificationSerializer
+    NotificationSerializer, StartupNotificationPrefsSerializer,
+    InvestorNotificationPrefsSerializer, TriggerNotificationSerializer
 )
 from .tasks import trigger_notification_task
 from .permissions import IsInvestorOrStartup
@@ -48,14 +57,14 @@ def get_user_role_and_object(user):
         try:
             investor = Investor.objects.get(user=user)
             roles_and_objects['investor'] = investor
-        except Investor.DoesNotExist:
+        except Investor.DoesNotExist:  # pylint: disable=no-member
             roles_and_objects['investor'] = None
 
     if user.roles.filter(name='startup').exists():
         try:
             startup = Startup.objects.get(user=user)
             roles_and_objects['startup'] = startup
-        except Startup.DoesNotExist:
+        except Startup.DoesNotExist:  # pylint: disable=no-member
             roles_and_objects['startup'] = None
 
     return roles_and_objects if roles_and_objects else {}
@@ -154,7 +163,7 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
                 investor = Investor.objects.get(user=user)
                 prefs, _ = InvestorNotificationPreferences.objects.get_or_create(investor=investor)
                 preferences.append((prefs, InvestorNotificationPrefsSerializer))
-            except Investor.DoesNotExist:
+            except Investor.DoesNotExist:  # pylint: disable=no-member
                 raise ValidationError(f"Investor for user {user.email} not found.")
 
         if user.roles.filter(name='startup').exists():
@@ -162,12 +171,12 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
                 startup = Startup.objects.get(user=user)
                 prefs, _ = StartupNotificationPreferences.objects.get_or_create(startup=startup)
                 preferences.append((prefs, StartupNotificationPrefsSerializer))
-            except Startup.DoesNotExist:
+            except Startup.DoesNotExist:  # pylint: disable=no-member
                 raise ValidationError(f"Startup for user {user.email} not found.")
 
         if not preferences:
-            raise ValidationError("Notification preferences cannot be created for this user, as they are neither an investor nor a startup.")
-        
+            raise ValidationError("Notification preferences cannot be created for this user.")
+
         return preferences
 
     def create(self, request):
@@ -193,7 +202,6 @@ class NotificationPrefsViewSet(viewsets.ViewSet):
                     return create_error_response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
             return Response(response_data, status=status.HTTP_201_CREATED)
-            
         except ValidationError as e:
             return create_error_response(str(e), status.HTTP_400_BAD_REQUEST)
 
@@ -241,7 +249,7 @@ class MarkAsReadView(APIView):
             notification.save()
             return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
         
-        except Notification.DoesNotExist:
+        except Notification.DoesNotExist:  # pylint: disable=no-member
             return create_error_response('Notification not found', status.HTTP_404_NOT_FOUND)
 
 
@@ -270,5 +278,5 @@ class DeleteNotificationView(APIView):
             notification.delete()
             return Response({'message': 'Notification deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
         
-        except Notification.DoesNotExist:
+        except Notification.DoesNotExist:  # pylint: disable=no-member
             return create_error_response('Notification not found', status.HTTP_404_NOT_FOUND)

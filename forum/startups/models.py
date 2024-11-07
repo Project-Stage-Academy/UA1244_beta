@@ -115,6 +115,8 @@ class Startup(models.Model):
     industries = models.ManyToManyField(Industry, related_name='startups')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = models.Manager()
+
     class Meta:
         verbose_name = 'Startup'
         verbose_name_plural = 'Startups'
