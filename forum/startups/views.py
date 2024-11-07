@@ -1,8 +1,16 @@
 import logging
+import traceback
 
 from django.shortcuts import get_object_or_404, render
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django_elasticsearch_dsl_drf.viewsets import DocumentViewSet
+from django_elasticsearch_dsl_drf.filter_backends import (
+    FilteringFilterBackend,
+    OrderingFilterBackend,
+    DefaultOrderingFilterBackend,
+    CompoundSearchFilterBackend,
+)
 
 from rest_framework import generics, viewsets, status
 from rest_framework.response import Response
@@ -14,7 +22,9 @@ from rest_framework.response import Response
 
 from .models import Startup, Industry
 from investors.models import Investor, InvestorFollow
-from .serializers import StartupSerializer, IndustrySerializer
+from .serializers import StartupSerializer, IndustrySerializer, StartupDocumentSerializer
+from .document import StartupDocument
+
 
 class StartupViewSet(viewsets.ModelViewSet):
     """
@@ -339,3 +349,45 @@ def get_industries_bulk(request):
 
     serializer = IndustrySerializer(industries, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class StartupSearchViewSet(DocumentViewSet):
+    """
+    ViewSet for searching Startup documents in Elasticsearch.
+    Supports complex filtering, ordering, and compound searching on Startup attributes.
+    """
+    document = StartupDocument
+    serializer_class = StartupDocumentSerializer
+    filter_backends = [
+        FilteringFilterBackend,
+        OrderingFilterBackend,
+        DefaultOrderingFilterBackend,
+        CompoundSearchFilterBackend,
+    ]
+    search_fields = ('company_name', 'description', 'industries.name')
+    filter_fields = {
+        'funding_stage': 'exact',
+        'location.city': 'exact',
+        'location.country': 'exact',
+        'total_funding': {
+            'lookup': 'range'  
+        },
+    }
+    ordering_fields = {
+        'company_name': 'company_name.raw',
+        'created_at': 'created_at',
+        'total_funding': 'total_funding'
+    }
+    ordering = ('created_at',)
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except ValueError as e:
+            return Response({"error": "Invalid value: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except AttributeError as e:
+            return Response({"error": "Attribute error: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print("Unexpected error in StartupSearchViewSet:")
+            print(traceback.format_exc())
+            return Response({"error": "An unexpected error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

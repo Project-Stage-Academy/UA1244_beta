@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
     'dj_rest_auth',
+    'django_elasticsearch_dsl', 
+    'django_elasticsearch_dsl_drf',
     
 
 
@@ -406,9 +408,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 
-
+# Oauth
 SITE_ID = 1
-
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
@@ -444,4 +445,20 @@ SOCIALACCOUNT_ADAPTER = 'users.adapter.CustomSocialAccountAdapter'
 LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
 SOCIALACCOUNT_LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
 
+
+
+
+# ElasticSearch
+
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': 'http://localhost:9200'
+    },
+}
+
+
+ELASTICSEARCH_INDEX_NAMES = {
+    'projects.project': 'projects',
+    'startups.startup': 'startups',
+}
 

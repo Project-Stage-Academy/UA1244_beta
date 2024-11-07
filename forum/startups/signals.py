@@ -1,6 +1,7 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import Startup
+from .document import StartupDocument
 from notifications.models import Notification
 from investors.models import InvestorFollow
 from notifications.tasks import create_notification_task
@@ -51,3 +52,28 @@ def notify_investors_on_startup_update(sender, instance, created, **kwargs):
             f"Startup '{instance.company_name}' has updated its profile.",
             initiator='startup'
         )
+
+
+@receiver(post_save, sender=Startup)
+def update_startup_document(sender, instance, **kwargs):
+    """
+    Signal to update the Elasticsearch document for the Startup model when an instance is saved.
+
+    Args:
+        sender: The model class.
+        instance: The instance being saved.
+        kwargs: Additional keyword arguments.
+    """
+    StartupDocument().update(instance)
+
+@receiver(post_delete, sender=Startup)
+def delete_startup_document(sender, instance, **kwargs):
+    """
+    Signal to delete the Elasticsearch document for the Startup model when an instance is deleted.
+
+    Args:
+        sender: The model class.
+        instance: The instance being deleted.
+        kwargs: Additional keyword arguments.
+    """
+    StartupDocument().delete(instance)
