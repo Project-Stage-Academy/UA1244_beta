@@ -9,7 +9,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.core.exceptions import ValidationError
 from .models import Notification
-from .tasks import send_email_notification
+
 
 
 def trigger_notification(investor, startup, project, trigger_type, initiator='investor'):
@@ -85,6 +85,7 @@ def notify_user(user, event_type, message):
 
     if send_email:
         try:
+            from .tasks import send_email_notification
             send_email_notification.delay(user.email, f'New {event_type} notification', message)
             return f"Notification sent to {user.email}."
         except Exception as e:
