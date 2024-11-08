@@ -46,7 +46,6 @@ Pillow==10.4.0
 vine==5.1.0
 wcwidth==0.2.13
 redis==5.1.1
-pillow==10.4.0
 django-channels==0.7.0
 daphne==4.1.2
 channels[daphne]~=4.0.0
@@ -60,5 +59,14 @@ django-simple-history==3.7.0
 django-cors-headers==4.5.0
 django-allauth==65.0.2
 dj-rest-auth==6.0.0
+
+# Elasticsearch-related dependencies
+django-elasticsearch-dsl==8.0
+django-elasticsearch-dsl-drf==0.22.5
+django-nine==0.2.7
+elastic-transport==8.15.1
+elasticsearch==8.15.1
+elasticsearch-dsl==8.9.0
+packaging==24.1
 
 

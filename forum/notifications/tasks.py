@@ -1,18 +1,26 @@
+"""
+Tasks for notifications app.
+
+This module defines asynchronous tasks for creating notifications and sending email alerts.
+"""
+
+from email.message import EmailMessage  
 from celery import shared_task
-from .utils import trigger_notification
-from investors.models import Investor
-from startups.models import Startup
-from projects.models import Project
 from django.conf import settings
 import aiosmtplib
-from email.message import EmailMessage
+
+from investors.models import Investor  
+from startups.models import Startup
+from projects.models import Project
 from .models import Notification
+from .utils import trigger_notification
+
 
 @shared_task
 def create_notification_task(entity_type, entity_id, trigger, message, initiator='system'):
     """
     Asynchronous task for creating notifications.
-    
+
     Args:
         entity_type (str): Type of the entity ('project', 'investor', 'startup').
         entity_id (int): ID of the entity triggering the notification.
@@ -45,10 +53,11 @@ def create_notification_task(entity_type, entity_id, trigger, message, initiator
                 initiator=initiator,
                 message=message
             )
-    except (Project.DoesNotExist, Investor.DoesNotExist, Startup.DoesNotExist):
+    except (Project.DoesNotExist, Investor.DoesNotExist, Startup.DoesNotExist):  # pylint: disable=no-member
         print(f"{entity_type.capitalize()} with ID {entity_id} does not exist")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Unexpected error: {str(e)}")
+
 
 @shared_task
 def trigger_notification_task(investor_id, startup_id, project_id, trigger_type):
@@ -59,7 +68,7 @@ def trigger_notification_task(investor_id, startup_id, project_id, trigger_type)
         investor_id (int): ID of the investor triggering the notification.
         startup_id (int): ID of the startup involved in the notification.
         project_id (int): ID of the project related to the notification.
-        trigger_type (str): Type of the trigger that caused the notification, such as 'project_follow' or 'startup_profile_update'.
+        trigger_type (str): Type of the trigger that caused the notification, such as 'project_follow'.
     
     This task will handle cases where the investor, startup, or project may not exist,
     and print an error message if any of the objects are not found.
@@ -71,19 +80,18 @@ def trigger_notification_task(investor_id, startup_id, project_id, trigger_type)
 
         trigger_notification(investor, startup, project, trigger_type)
 
-    except Investor.DoesNotExist:
+    except Investor.DoesNotExist:  # pylint: disable=no-member
         print(f'Investor with ID {investor_id} does not exist')
         return 'Investor not found'
-    except Startup.DoesNotExist:
+    except Startup.DoesNotExist:  # pylint: disable=no-member
         print(f'Startup with ID {startup_id} does not exist')
         return 'Startup not found'
-    except Project.DoesNotExist:
+    except Project.DoesNotExist:  # pylint: disable=no-member
         print(f'Project with ID {project_id} does not exist')
         return 'Project not found'
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f'Unexpected error: {str(e)}')
         return 'Unexpected error occurred'
-
 
 
 @shared_task
@@ -126,5 +134,5 @@ async def send_email_notification(user_email, subject, message):
         )
     except aiosmtplib.SMTPException as e:
         print(f"Error occurred while sending email: {str(e)}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Unexpected error: {str(e)}")

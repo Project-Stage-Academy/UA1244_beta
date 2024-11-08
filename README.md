@@ -189,3 +189,54 @@ npm start
 The React development server will now run on http://localhost:3000. This server serves the frontend, while the Django API should be running on http://localhost:8000.
 
 
+OAuth Setup and Configuration
+This section provides a comprehensive guide to setting up OAuth providers (e.g., Google) for authentication, explains how the login and JWT issuance processes work, and includes troubleshooting tips for common errors.
+
+1. Setting up OAuth Providers
+Google OAuth Setup
+Go to the Google Cloud Console.
+Navigate to APIs & Services > Credentials.
+Click Create Credentials and select OAuth client ID.
+Choose Web application as the application type.
+Set your Authorized redirect URI to:
+
+http://localhost:8000/api/token/oauth/
+
+After saving, you’ll receive a Client ID and Client Secret. Store these in your Django project’s environment variables as follows:
+
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/token/oauth/
+
+GitHub OAuth Setup (optional)
+If your project later requires GitHub as an additional provider, the setup steps would be similar but configured in the GitHub Developer settings.
+
+2. OAuth Login and JWT Token Issuance
+The OAuth login flow proceeds as follows:
+
+User Login Request: The user clicks on the “Login with Google” button in the frontend.
+Authorization Code Exchange: The OAuth provider (e.g., Google) provides an authorization code after successful user authentication.
+Token Exchange and Profile Retrieval: The backend exchanges the authorization code for an access token, which is then used to retrieve the user’s profile.
+User Account Handling:
+If the user exists, the system verifies if the account is active.
+If not, the user account is created and activated automatically.
+JWT Token Generation: Once authenticated, the backend generates a refresh and access token pair for the user.
+Response to Client: The backend returns the tokens to the client, allowing the user to access authenticated routes.
+3. Common Troubleshooting Tips
+Issue: "Provider and code are required" Error
+
+Ensure both the provider and code fields are included in the request payload.
+Double-check that your OAuth provider is configured correctly.
+Issue: "Failed to obtain access token from provider" Error
+
+This may indicate an invalid authorization code or incorrect client credentials.
+Confirm the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET values in your environment are accurate.
+Issue: "Unsupported provider" Error
+
+Ensure that only supported providers (e.g., Google) are being requested.
+Check that provider in the request matches the available options in the backend configuration.
+Issue: "User account is inactive" Error
+
+This message appears when an inactive account attempts login. Check if the account needs additional setup for activation.
+
+By following this guide and ensuring correct configuration, you can seamlessly integrate OAuth authentication into your project and handle user logins securely.

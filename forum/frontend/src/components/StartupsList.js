@@ -12,7 +12,7 @@ const StartupsList = () => {
 
     console.log('Sending request to API with access_token:', accessToken);
 
-    axios.get('http://localhost:8000/api/startups/list/', {
+    axios.get('http://localhost:8000/startups/', {
       headers: {
         'Authorization': `Bearer ${accessToken}`  
       }
@@ -33,14 +33,14 @@ const StartupsList = () => {
   }
 
   return (
-    <div className="startup-list-container">
-      <h2>List of Startups</h2>
-      <ul className="list-group">
+    <div className="startups-container">
+      <h2 className="startups-title">List of Startups</h2>
+      <ul className="startups-list">
         {startups.map(startup => (
-          <li key={startup.startup_id} className="list-group-item">
-            <h3>{startup.company_name}</h3>
-            <p>{startup.description}</p>
-            <Link to={`/startup/${startup.startup_id}`} className="btn btn-primary">Contact</Link> 
+          <li key={startup.startup_id} className="startups-item">
+            <h3 className="startups-item-title">{startup.company_name}</h3>
+            <p className="startups-item-description">{startup.description}</p>
+            <Link to={`/startups/${startup.startup_id}`} className="startups-item-button">Contact</Link> 
           </li>
         ))}
       </ul>

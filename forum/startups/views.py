@@ -1,8 +1,16 @@
 import logging
+import traceback
 
 from django.shortcuts import get_object_or_404, render
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import IntegrityError
+from django_elasticsearch_dsl_drf.viewsets import DocumentViewSet
+from django_elasticsearch_dsl_drf.filter_backends import (
+    FilteringFilterBackend,
+    OrderingFilterBackend,
+    DefaultOrderingFilterBackend,
+    CompoundSearchFilterBackend,
+)
 
 from rest_framework import generics, viewsets, status
 from rest_framework.response import Response
@@ -11,10 +19,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 
-from .models import Startup
+from .models import Startup, Industry
 from investors.models import Investor, InvestorFollow
-from .serializers import StartupSerializer
+from .serializers import StartupSerializer, IndustrySerializer, StartupDocumentSerializer
+from .document import StartupDocument
+
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -375,113 +387,72 @@ def create_error_response(message, status_code):
 
 class StartupListView(generics.ListAPIView):
     """
-    API View to retrieve a list of all startup objects.
-
-    Permissions:
-        - Only authenticated users can access this view.
-
-    Methods:
-        - get_queryset(): Retrieves all startup objects from the database.
-        - get(): Handles GET requests to fetch and return the list of startups.
+    API endpoint to retrieve a list of startups with optional filtering.
     """
     serializer_class = StartupSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = PageNumberPagination
 
     def get_queryset(self):
-        """
-        Retrieves all startup objects from the database.
+        industry_name = self.request.query_params.get("industry")
+        location_city = self.request.query_params.get("location")
+        
+        queryset = Startup.objects.all()
+        
+        if industry_name:
+            queryset = queryset.filter(industries__name__iexact=industry_name)
 
-        Returns:
-            QuerySet: A queryset containing all startup objects.
-        """
-        return Startup.objects.all()
+        if location_city:
+            queryset = queryset.filter(location__city__iexact=location_city)
+        
+        return queryset
 
-    def get(self, request, *args, **kwargs):
-        """
-        Handles GET requests to retrieve the list of startups.
-
-        Returns:
-            Response: A DRF Response containing serialized startup data or an error message if no startups are found.
-        """
+    def list(self, request, *args, **kwargs):
+        logger.info("Received GET request for startup list")
         try:
-            startups = self.get_queryset()
-            if not startups.exists():
-                return create_error_response("No startups found.", status.HTTP_404_NOT_FOUND)
-
-            serializer = self.serializer_class(startups, many=True)
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-
         except Exception as e:
             logger.error(f"Internal Server Error: {str(e)}")
-            return create_error_response("Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class StartupDetailView(generics.RetrieveAPIView):
     """
     API View to retrieve detailed information about a specific startup.
-
-    Permissions:
-        - Only authenticated users can access this view.
-
-    Attributes:
-        - queryset: A queryset of all startup objects.
-        - serializer_class: Specifies the serializer used to convert model instances to JSON.
-        - lookup_field: The field used to retrieve a specific startup (e.g., 'startup_id').
-
-    Methods:
-        - get_queryset(): Retrieves all startup objects from the database.
-        - get(): Handles GET requests to retrieve details about a specific startup by ID.
     """
     queryset = Startup.objects.all()
     serializer_class = StartupSerializer
+    permission_classes = [IsAuthenticated]
     lookup_field = 'startup_id'
 
-    def get_queryset(self):
-        """
-        Retrieves all startup objects from the database.
-
-        Returns:
-            QuerySet: A queryset containing all startup objects.
-        """
-        return Startup.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        """
-        Handles GET requests to retrieve details about a specific startup by its ID.
-
-        Args:
-            request: The HTTP request object.
-            startup_id: The ID of the startup to retrieve.
-
-        Returns:
-            Response: A DRF Response containing serialized startup data or an error message if not found.
-        """
+    def retrieve(self, request, *args, **kwargs):
+        startup_id = kwargs.get('startup_id')
+        logger.info(f"Received GET request for startup detail with ID {startup_id}")
         try:
-            startup_id = kwargs.get('startup_id')
-            if not startup_id:
-                return create_error_response("Missing startup ID in the URL", status.HTTP_400_BAD_REQUEST)
-
             startup = self.get_object()
             serializer = self.get_serializer(startup)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Startup.DoesNotExist:
             logger.error(f"Startup with id {startup_id} not found.")
-            return create_error_response("Startup not found", status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Startup not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(f"Internal server error: {str(e)}")
-            return create_error_response("Internal server error", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class SendMessageView(generics.CreateAPIView):
     """
     API View to handle sending messages to a specific startup.
-
-    Permissions:
-        - Only authenticated users can send messages.
-
-    Methods:
-        - post(): Handles POST requests to send a message to the specified startup.
     """
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         """
         Handles POST requests to send a message to a startup.
@@ -496,13 +467,100 @@ class SendMessageView(generics.CreateAPIView):
         content = request.data.get('content')
 
         if not startup_id or not content:
-            return create_error_response("Startup ID and content are required.", status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Startup ID and content are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            startup = Startup.objects.get(pk=startup_id)
-            # Логіка для збереження повідомлення
-            return Response({"success": f"Message sent to {startup.company_name}"})
+            startup = get_object_or_404(Startup, pk=startup_id)
+            # Логіка для збереження повідомлення, наприклад, створення запису в базі даних
+            # Message.objects.create(startup=startup, content=content, user=request.user)
+
+            logger.info(f"Message sent to {startup.company_name}")
+            return Response({"success": f"Message sent to {startup.company_name}"}, status=status.HTTP_200_OK)
         except Startup.DoesNotExist:
-            return create_error_response("Startup not found.", status.HTTP_404_NOT_FOUND)
+            logger.error(f"Startup with ID {startup_id} not found.")
+            return Response({"error": "Startup not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return create_error_response(f"An error occurred: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"An error occurred: {str(e)}")
+            return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def get_industries_bulk(request):
+    """
+    Endpoint to retrieve a list of industries by their IDs.
+
+    This endpoint accepts a POST request containing a list of industry IDs and returns
+    the corresponding industry objects if they exist. It is intended to provide detailed information 
+    about multiple industries in a single request, based on the provided IDs.
+
+    Parameters:
+    - ids (list of UUIDs): A list of industry IDs to retrieve. The IDs should be provided 
+      in the request payload under the "ids" key.
+
+    Returns:
+    - 200 OK: A JSON response containing the details of the requested industries. Each industry 
+      is serialized with its respective attributes.
+    - 404 Not Found: If no industries are found with the provided IDs, a JSON response with 
+      an error message is returned.
+    - 400 Bad Request: If no industry IDs are provided in the request, a JSON response with 
+      an error message is returned.
+
+    Permissions:
+    - Requires the user to be authenticated.
+    """
+    ids = request.data.get('ids', [])
+    if not ids:
+        return Response({"error": "No industry IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+    industries = Industry.objects.filter(industry_id__in=ids)
+    
+    if not industries.exists():
+        return Response({"error": "No industries found for the provided IDs"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = IndustrySerializer(industries, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class StartupSearchViewSet(DocumentViewSet):
+    """
+    ViewSet for searching Startup documents in Elasticsearch.
+    Supports complex filtering, ordering, and compound searching on Startup attributes.
+    """
+    document = StartupDocument
+    serializer_class = StartupDocumentSerializer
+    filter_backends = [
+        FilteringFilterBackend,
+        OrderingFilterBackend,
+        DefaultOrderingFilterBackend,
+        CompoundSearchFilterBackend,
+    ]
+    search_fields = ('company_name', 'description', 'industries.name')
+    filter_fields = {
+        'funding_stage': 'exact',
+        'location.city': 'exact',
+        'location.country': 'exact',
+        'total_funding': {
+            'lookup': 'range'
+        },
+    }
+    ordering_fields = {
+        'company_name': 'company_name.raw',
+        'created_at': 'created_at',
+        'total_funding': 'total_funding',
+        'number_of_employees': 'number_of_employees',
+    }
+    ordering = ('created_at',)
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except ValueError as e:
+            return Response({"error": f"Invalid value: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+        except AttributeError as e:
+            return Response({"error": f"Attribute error: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print("Unexpected error in StartupSearchViewSet:")
+            print(traceback.format_exc())
+            return Response({"error": f"An unexpected error occurred: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -5,9 +5,11 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from elasticsearch_dsl import connections
 
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework.test import APIClient
 
 from .models import Startup, Industry, Location, FundingStage
 from users.models import User, Role
@@ -355,7 +357,118 @@ class StartupViewSetTests(APITestCase, StartupTestBase):
         self.assertIn(response.data['results'][0]['company_name'], ["EcoSolutionss", "Solar"])
     
     def test_access_denied_for_non_investor(self):
-
         self.user.change_active_role('startup')
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+
+class StartupSearchTestCase(TestCase):
+    """
+    Test case for testing search, filtering, and ordering on Startup API.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+
+        self.user = User.objects.create_user(username="testuser", email="testuser@example.com", password="testpass")
+
+        self.location = Location.objects.create(city="San Francisco", country="USA", city_code="SF")
+
+        self.industry1 = Industry.objects.create(name="Technology")
+        self.industry2 = Industry.objects.create(name="Healthcare")
+
+        self.startup1 = Startup.objects.create(
+            user=self.user,
+            company_name="TechCorp",
+            required_funding=500000,
+            funding_stage="Seed",
+            number_of_employees=50,
+            description="A tech startup",
+            total_funding=300000,
+            location=self.location
+        )
+        self.startup1.industries.add(self.industry1)
+
+        self.startup2 = Startup.objects.create(
+            user=self.user,
+            company_name="HealthPlus",
+            required_funding=1000000,
+            funding_stage="Series A",
+            number_of_employees=100,
+            description="Healthcare innovations",
+            total_funding=500000,
+            location=self.location
+        )
+        self.startup2.industries.add(self.industry2)
+
+        connections.create_connection(hosts=['http://localhost:9200'])
+
+    def test_search_startup_by_company_name(self):
+        """
+        Test searching startups by company name.
+        """
+        response = self.client.get('/startups/startups/search/', {'search': 'TechCorp'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any(startup['company_name'] == 'TechCorp' for startup in response.data))
+
+    def test_filter_startup_by_funding_stage(self):
+        """
+        Test filtering startups by funding stage.
+        """
+        response = self.client.get('/startups/startups/search/', {'funding_stage': 'Seed'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(startup['funding_stage'] == 'Seed' for startup in response.data))
+
+    def test_filter_startup_by_required_funding_range(self):
+        """
+        Test filtering startups by required funding range.
+        """
+        response = self.client.get('/startups/startups/search/', {'total_funding__gte': 400000, 'total_funding__lte': 600000})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(400000 <= startup['total_funding'] <= 600000 for startup in response.data))
+
+    def test_filter_startup_by_location_city(self):
+        """
+        Test filtering startups by location city.
+        """
+        response = self.client.get('/startups/startups/search/', {'location.city': 'San Francisco'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(startup['location']['city'] == 'San Francisco' for startup in response.data))
+
+    def test_order_startups_by_total_funding_ascending(self):
+        """
+        Test ordering startups by total funding in ascending order.
+        """
+        response = self.client.get('/startups/startups/search/', {'ordering': 'total_funding'})
+        self.assertEqual(response.status_code, 200)
+        funding_values = [startup['total_funding'] for startup in response.data]
+        self.assertEqual(funding_values, sorted(funding_values))
+
+    def test_order_startups_by_total_funding_descending(self):
+        """
+        Test ordering startups by total funding in descending order.
+        """
+        response = self.client.get('/startups/startups/search/', {'ordering': '-total_funding'})
+        self.assertEqual(response.status_code, 200)
+        funding_values = [startup['total_funding'] for startup in response.data]
+        self.assertEqual(funding_values, sorted(funding_values, reverse=True))
+
+    def test_order_startups_by_number_of_employees_ascending(self):
+        """
+        Test ordering startups by number of employees in ascending order.
+        """
+        response = self.client.get('/startups/startups/search/', {'ordering': 'number_of_employees'})
+        self.assertEqual(response.status_code, 200)
+        employee_counts = [startup['number_of_employees'] for startup in response.data]
+        self.assertEqual(employee_counts, sorted(employee_counts))
+
+    def test_order_startups_by_number_of_employees_descending(self):
+        """
+        Test ordering startups by number of employees in descending order.
+        """
+        response = self.client.get('/startups/startups/search/', {'ordering': '-number_of_employees'})
+        self.assertEqual(response.status_code, 200)
+        employee_counts = [startup['number_of_employees'] for startup in response.data]
+        self.assertEqual(employee_counts, sorted(employee_counts, reverse=True))
+

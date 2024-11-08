@@ -1,17 +1,37 @@
+"""
+Utility functions for handling notifications in the Notifications app.
+
+These functions include methods to trigger notifications for investors, startups, or projects
+and to notify users via WebSocket or email based on their preferences.
+"""
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from .models import Notification
 from django.core.exceptions import ValidationError
+from .models import Notification
+
 
 
 def trigger_notification(investor, startup, project, trigger_type, initiator='investor'):
     """
     Function to create a notification and send a real-time notification via WebSocket.
+    
+    Args:
+        investor (Investor): Investor related to the notification.
+        startup (Startup): Startup related to the notification.
+        project (Project): Project related to the notification.
+        trigger_type (str): Type of event triggering the notification.
+        initiator (str): Entity initiating the notification (default is 'investor').
+    
+    Raises:
+        ValidationError: If no related entity is provided for the notification.
     """
     if not (investor or startup or project):
-        raise ValidationError('Notification must be related to either an investor, startup, or project.')
+        raise ValidationError(
+            'Notification must be related to either an investor, startup, or project.'
+        )
 
-    notification = Notification.objects.create(
+    Notification.objects.create(
         investor=investor,
         startup=startup,
         project=project,
@@ -40,7 +60,7 @@ def notify_user(user, event_type, message):
     
     Args:
         user (User): The user who will receive the notification.
-        event_type (str): The type of event triggering the notification (e.g., 'new_follow', 'new_message').
+        event_type (str): The type of event triggering the notification.
         message (str): The content of the email to send.
     
     Returns:

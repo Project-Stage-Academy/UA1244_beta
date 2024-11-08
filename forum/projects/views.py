@@ -1,12 +1,24 @@
 import logging
+import traceback
 
 from django.shortcuts import render, get_object_or_404, HttpResponse
+from django_elasticsearch_dsl_drf.viewsets import DocumentViewSet
+from django_elasticsearch_dsl_drf.filter_backends import (
+    FilteringFilterBackend,
+    OrderingFilterBackend,
+    DefaultOrderingFilterBackend,
+    CompoundSearchFilterBackend,
+)
 
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 
-from .models import Project
-from .serializers import ProjectSerializer
+from users.permissions import IsInvestor
+from .models import Project, Subscription
+from .serializers import ProjectSerializer, SubscriptionSerializer, ProjectDocumentSerializer
+from .document import ProjectDocument
 
 
 class ProjectListCreateView(generics.ListCreateAPIView):
@@ -79,3 +91,68 @@ def projects(request):
         return HttpResponse("Not implemented")
     except Exception as e:
         logger.error(f"Error occurred: {e}")
+
+
+class SubscriptionCreateView(generics.ListCreateAPIView):
+    queryset = Subscription.objects.all()
+    serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated, IsInvestor]
+
+    def perform_create(self, serializer):
+        project = serializer.validated_data['project']
+        total_funding_received = project.subscribed_projects.aggregate(Sum('funded_amount'))['funded_amount__sum'] or 0
+        remaining_funding = project.required_amount - total_funding_received
+
+        proposed_funding = serializer.validated_data['funded_amount']
+        if proposed_funding > remaining_funding:
+            raise serializer.ValidationError("Investment exceeds remaining funding for this project.")
+        serializer.save()
+
+        remaining_funding -=proposed_funding
+
+        return render(request,
+                      template_name='projects/project_history.html',
+                      context={'project':project, 'funding_recieved': total_funding_received})
+    
+
+
+class ProjectSearchViewSet(DocumentViewSet):
+    """
+    ViewSet for searching Project documents in Elasticsearch.
+    Allows for complex filtering, ordering, and compound searching on Project attributes.
+    """
+    document = ProjectDocument
+    serializer_class = ProjectDocumentSerializer
+    filter_backends = [
+        FilteringFilterBackend,
+        OrderingFilterBackend,
+        DefaultOrderingFilterBackend,
+        CompoundSearchFilterBackend,
+    ]
+    search_fields = ('title', 'description', 'startup.company_name')
+    filter_fields = {
+        'status': 'exact',
+        'startup.company_name': 'exact',
+        'industry': 'exact',
+        'required_amount': {
+            'lookup': 'range'  
+        },
+    }
+    ordering_fields = {
+        'title': 'title.raw',
+        'created_at': 'created_at',
+        'required_amount': 'required_amount'
+    }
+    ordering = ('created_at',)
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except ValueError as e:
+            return Response({"error": "Invalid value: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except AttributeError as e:
+            return Response({"error": "Attribute error: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print("Unexpected error in ProjectSearchViewSet:")
+            print(traceback.format_exc())
+            return Response({"error": "An unexpected error occurred: " + str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

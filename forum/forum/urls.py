@@ -15,8 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
-from django.http import JsonResponse
+# from django.contrib.auth import views as auth_views
+# from django.http import JsonResponse
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -24,7 +24,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from users.api_view import ActivateAccountView, SignOutView, OAuthTokenObtainPairView
+from users.api_view import ActivateAccountView, SignOutView, OAuthTokenObtainPairView, ResetPasswordRequestView, ResetPasswordConfirmView
 from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 
@@ -38,13 +38,11 @@ urlpatterns = [
     path("api/v1/", include("users.urls")),
     path("projects/", include("projects.urls")),
     path("profiles/", include("profiles.urls")),
-    path("communications/", include("communications.urls")),
+    path("", include("communications.urls")),
     path("dashboard/", include("dashboard.urls")),
     path("investors/", include("investors.urls")),
     path("startups/", include("startups.urls")),
     path("notifications/", include("notifications.urls")),
-
-
 
     # JWT Token URLs
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain'),
@@ -65,10 +63,14 @@ urlpatterns = [
     path('reset_password_sent/', auth_views.PasswordResetDoneView.as_view(), name ='password_reset_done'),
     path('reset/<uidb64>/<token>', auth_views.PasswordResetConfirmView.as_view(), name ='password_reset_confirm'),
     path('reset_password_complete/', auth_views.PasswordResetCompleteView.as_view(), name ='password_reset_complete'),
+    path('api/custom_reset_password/', ResetPasswordRequestView.as_view(), name='reset_password_request'),
+    path('reset_password_confirm/<uidb64>/<token>/', ResetPasswordConfirmView.as_view(), name='reset_password_confirm'),
+
 
     # allauth
     path('accounts/', include('allauth.urls')),
     path('api/token/oauth/', OAuthTokenObtainPairView.as_view(), name='token_obtain_oauth'),
+    
     
 
 ]
