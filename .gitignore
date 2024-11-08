@@ -225,4 +225,4 @@ babel.config.js
 #Secret key file
 secret.key
 
-forum/ssl
+ssl

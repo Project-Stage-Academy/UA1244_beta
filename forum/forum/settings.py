@@ -298,8 +298,6 @@ log_dir = os.path.dirname(LOG_FILE_PATH)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
-
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -451,6 +449,6 @@ ELASTICSEARCH_INDEX_NAMES = {
 SSL_CERTIFICATE = os.path.join(BASE_DIR, 'ssl', 'localhost.crt')
 SSL_KEY = os.path.join(BASE_DIR, 'ssl', 'localhost.key')
 
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+# SECURE_SSL_REDIRECT = True
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True

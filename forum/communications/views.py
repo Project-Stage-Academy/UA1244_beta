@@ -60,8 +60,8 @@ class ConversationApiView(APIView):
             room_users.append({"user_id": str(authenticated_user.user_id), "username": authenticated_user.username})
 
             # Map participants from Django users to Mongo users
-            for user_id in participants:
-                user = User.objects.get(user_id=user_id)
+            for partecipant in participants:
+                user = User.objects.get(user_id=partecipant['user_id'])
                 room_users.append({"user_id": str(user.user_id), "username": user.username})
 
             # Create new room

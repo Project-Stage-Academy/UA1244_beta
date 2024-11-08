@@ -20,7 +20,7 @@ class MessageSerializer(serializers.Serializer):
 
 class RoomSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
-    messages = MessageSerializer(many=True)
+    messages = MessageSerializer(many=True, default=lambda: [])
     participants = UserSerializer(many=True)
 
 
