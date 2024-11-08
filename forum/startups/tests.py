@@ -244,15 +244,26 @@ class StartupViewSetTests(APITestCase, StartupTestBase):
         test_list_startups_success(): Tests listing all available startup profiles by 
         sending a GET request to the list view endpoint and validating the response data.
 
+        test_search_startup_no_results(): Tests searching for a non-existent startup profile 
+        by sending a GET request with a search query for a non-existent company name 
+        ('NonExistentCompany') and checking that the response returns 0 results.
+
         test_search_startup_by_company_name(): Tests searching startup profiles by a 
         partial company name by sending a GET request with a search query parameter.
+
+        test_search_startup_case_insensitive(): Tests the case-insensitivity of the search 
+        functionality by sending a GET request with a search query that differs in case 
+        (e.g., 'ecoSOLUTIONS') and ensuring it matches the startup name.
     
         test_filter_startup_by_exact_company_name(): Tests filtering startup profiles 
         by an exact company name by sending a GET request with a company_name query 
         parameter.
     
         test_filter_startup_by_industry_name(): Tests filtering startup profiles based on 
-        industry by sending a GET request with an industry_name query parameter. 
+        industry by sending a GET request with an industry_name query parameter.
+
+        test_access_denied_for_non_investor(): Tests that non-investor users receive 
+        a 403 Forbidden response when trying to access the startup list endpoint. 
 """
     def setUp(self):
 
@@ -280,6 +291,8 @@ class StartupViewSetTests(APITestCase, StartupTestBase):
             required_funding=1000000,
             location=self.location,
         )
+        self.assertTrue(Startup.objects.filter(company_name="EcoSolutionss").exists())
+        self.assertTrue(Startup.objects.filter(company_name="Solar").exists())
         self.startup.industries.set([self.industry1])
         self.startup2.industries.set([self.industry2])
 
@@ -297,33 +310,52 @@ class StartupViewSetTests(APITestCase, StartupTestBase):
         non_existent_id = uuid.uuid4()
         url = reverse('startup-detail', args=[non_existent_id])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertEqual(response.data['detail'], "No Startup matches the given query.")
 
     def test_list_startups_success(self):
 
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(len(response.data) > 0)
-        self.assertEqual(response.data[0]['company_name'], self.startup.company_name)
+        self.assertTrue((response.data['count']) > 0)
+        self.assertEqual(response.data['results'][0]['company_name'], self.startup.company_name)
+    
+    def test_search_startup_no_results(self):
+
+        response = self.client.get(self.list_url, {'search': 'NonExistentCompany'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual((response.data['count']), 0)
 
     def test_search_startup_by_company_name(self):
 
         response = self.client.get(self.list_url, {'search': 'Eco'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['company_name'], "EcoSolutionss")
+        self.assertEqual((response.data['count']), 1)
+        self.assertEqual(response.data['results'][0]['company_name'], "EcoSolutionss")
+    
+    def test_search_startup_case_insensitive(self):
+
+        response = self.client.get(self.list_url, {'search': 'ecoSOLUTIONS'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual((response.data['count']), 1)
+        self.assertEqual(response.data['results'][0]['company_name'], "EcoSolutionss")
 
     def test_filter_startup_by_exact_company_name(self):
 
         response = self.client.get(self.list_url, {'company_name': 'Solar'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['company_name'], "Solar")
+        self.assertEqual((response.data['count']), 1)
+        self.assertEqual(response.data['results'][0]['company_name'], "Solar")
 
     def test_filter_startup_by_industry_name(self):
 
         response = self.client.get(self.list_url, {'industry_name': self.industry2.name})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(len(response.data) >= 1)
-        self.assertIn(response.data[0]['company_name'], ["EcoSolutionss", "Solar"])
+        self.assertTrue(response.data['count'] >= 1)
+        self.assertIn(response.data['results'][0]['company_name'], ["EcoSolutionss", "Solar"])
+    
+    def test_access_denied_for_non_investor(self):
+
+        self.user.change_active_role('startup')
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

@@ -28,7 +28,8 @@ class IsInvestor(BasePermission):
         otherwise False.
     """
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.active_role.name == 'investor'
+        return (request.user.is_authenticated
+                 and getattr(request.user.active_role, 'name', '').lower() == 'investor')
     
 class IsStartup(BasePermission):
     """
@@ -43,5 +44,5 @@ class IsStartup(BasePermission):
         otherwise False.
     """
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.active_role.name == 'startup'
-    
+        return (request.user.is_authenticated
+                 and getattr(request.user.active_role, 'name', '').lower() == 'startup')

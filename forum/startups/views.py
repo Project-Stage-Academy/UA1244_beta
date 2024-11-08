@@ -17,7 +17,10 @@ from investors.models import Investor, InvestorFollow
 from .serializers import StartupSerializer
 
 
-
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class StartupViewSet(viewsets.ModelViewSet):
     """
@@ -56,16 +59,21 @@ class StartupViewSet(viewsets.ModelViewSet):
         list(): Retrieves a list of all startup profiles to the investor. Includes error
             handling to return appropriate messages in case of any unexpected issues.
 
-        get_queryset(): Retrieves the queryset based on the user's role and query parameters.
-            Only investors can access this data. Supports filtering by company name and 
-            industry and includes a search functionality for company names.
-            - Search functionality allows partial matching of `company_name`.
-            - Filtering options include:
-                * `company_name` (exact or partial match)
-                * `industry_name` (name of the industry associated with the startup)
+        get_queryset(): 
+            Retrieves the queryset of startup profiles, applying custom filtering 
+            based on the user's role and query parameters. Only investors can 
+            access the data. Supports filtering by `company_name` and `industry_name` 
+            and includes a search functionality for company names.
+
+        filter_queryset(): 
+            Filters and searches the queryset based on provided query parameters, 
+            such as `search`, `company_name`, and `industry_name`. The method modifies 
+            the queryset to match the provided criteria and returns the filtered queryset.
     """
-    queryset = Startup.objects.all()
+    queryset = Startup.objects.all().order_by('company_name')
     serializer_class = StartupSerializer
+    pagination_class = StandardResultsSetPagination
+    
 
     def get_permissions(self):
         """
@@ -159,19 +167,29 @@ class StartupViewSet(viewsets.ModelViewSet):
 
         Returns:
             Response: A response containing the startup data or error details.
+        
+        Logs:
+            Logs key actions such as the retrieval request, success, not found,
+            and any errors that occur.
         """
+        logger.info(f"Retrieve request for Startup ID: {kwargs.get('pk')}") 
         try:
             instance = self.get_object()
+            logger.info(f"Successfully retrieved Startup: {instance.company_name}")
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
         except ObjectDoesNotExist:
+            logger.warning(f"Startup with ID {kwargs.get('pk')} not found.")
             return Response({"detail": "Startup not found."}, status=status.HTTP_404_NOT_FOUND)
         except ValidationError as e:
+            logger.error(f"Validation error occurred: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except IntegrityError:
+            logger.error("Database integrity error occurred during retrieval.")
             return Response({"detail": "Database integrity error occurred."},
                         status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.exception(f"Unexpected error occurred: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def list(self, request, *args, **kwargs):
@@ -186,50 +204,74 @@ class StartupViewSet(viewsets.ModelViewSet):
 
         Returns:
             Response: A response containing the list of startups or error details.
+
+        Logs:
+            Logs key actions such as request details, total startups found, pagination status,
+            and any errors that occur during the request processing.
         """
+        logger.info(f"List request for all startups. Query params: {request.query_params}")
         try:
             queryset = self.get_queryset()
+            logger.info(f"Total startups found: {queryset.count()}")
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                logger.info(f"Returning paginated response with {len(page)} startups.")
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            logger.info("Returning non-paginated response for all startups.")
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
         except ValidationError as e:
+            logger.error(f"Validation error occurred: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except IntegrityError:
+            logger.error("Database integrity error occurred during listing.")
             return Response({"detail": "Database integrity error occurred."},
                         status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.exception(f"Unexpected error occurred: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-    def get_queryset(self):
+    def filter_queryset(self, queryset):
         """
-        Retrieves the queryset of startup profiles based on user role and query parameters.
-        Search and filtering options are provided. Custom error handling is included to 
-        manage permission issues.
+        Filters and searches the queryset based on the provided query parameters.
+
+        This method is responsible for applying search and filtering options to the 
+        queryset based on the query parameters `search`, `company_name`, and `industry_name`.
+        It will modify the queryset to match the criteria provided by the user.
+
+        Args:
+            queryset (QuerySet): The original queryset of startup profiles that will 
+            be filtered based on the query parameters.
 
         Returns:
-            QuerySet: Filtered and searchable queryset for the list and retrieve actions.
+            QuerySet: The filtered queryset, which can be further used for listing or retrieving 
+            startup profiles.
 
-        Raises:
-            PermissionDenied: If the user is not authenticated or does not have the 'investor' role.
         """
-        if self.action in ['list', 'retrieve']:
-            if not self.request.user.is_authenticated or self.request.user.active_role.name != 'investor':
-                raise PermissionDenied("You do not have permission to view this data.")
-        
-        queryset = self.queryset
         search = self.request.query_params.get('search', None)
+        company_name = self.request.query_params.get('company_name', None)
+        industry_name = self.request.query_params.get('industry_name', None)
+
         if search:
             queryset = queryset.filter(company_name__icontains=search)
-
-        company_name = self.request.query_params.get('company_name', None)
-        industry = self.request.query_params.get('industry', None)
-
         if company_name:
             queryset = queryset.filter(company_name__icontains=company_name)
-        industry_name = self.request.query_params.get('industry_name', None)
         if industry_name:
             queryset = queryset.filter(industries__name__icontains=industry_name)
 
         return queryset
+    
+    def get_queryset(self):
+        """
+        Retrieves the queryset of startup profiles and applies any custom filtering.
+
+        Returns:
+            QuerySet: The final queryset that includes all applied filters based
+              on the user's query parameters.
+        """
+        queryset = super().get_queryset()
+        return self.filter_queryset(queryset)
 
 
 logger = logging.getLogger(__name__)
