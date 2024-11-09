@@ -28,13 +28,16 @@ class BaseConsumer(AsyncWebsocketConsumer):
             if user_id is None:
                 raise DenyConnection("Invalid token: User not found")
 
+            await self.join_group()
+
+            await self.accept()
+            
         except (InvalidToken, TokenError):
             logger.error("Connection is denied: invalid token")
             raise DenyConnection("Invalid token")
-
-        await self.join_group()
-
-        await self.accept()
+        except Exception as e:
+            logger.error(f"Error connecting for user {user_id}: {e}")
+            
 
     async def disconnect(self, close_code):
         await self.leave_group()

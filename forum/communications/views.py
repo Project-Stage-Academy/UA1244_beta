@@ -1,11 +1,15 @@
 import logging
+import os
 from datetime import datetime
+import bleach
 
 import channels.layers
 
 from asgiref.sync import async_to_sync
+from cryptography.fernet import Fernet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +22,7 @@ from users.models import User
 
 logger = logging.getLogger(__name__)
 
+cipher = Fernet(os.environ.get('FERNET_KEY'))
 
 class ConversationApiView(APIView):
 
@@ -28,7 +33,13 @@ class ConversationApiView(APIView):
                 logger.error(f"Error occurred: {err_msg}")
                 return Response({"error": "Empty request body"}, status=status.HTTP_400_BAD_REQUEST)
 
-            participants = request.data.get("participants")
+            serializer = RoomSerializer(data=request.data)
+
+            if not serializer.is_valid():
+                logger.error(f"Validation error: {serializer.errors}")
+                return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            participants = serializer.validated_data.get("participants")
 
             if not participants:
                 err_msg = "Missing 'participants' key in request body"
@@ -49,8 +60,8 @@ class ConversationApiView(APIView):
             room_users.append({"user_id": str(authenticated_user.user_id), "username": authenticated_user.username})
 
             # Map participants from Django users to Mongo users
-            for user_id in participants:
-                user = User.objects.get(user_id=user_id)
+            for partecipant in participants:
+                user = User.objects.get(user_id=partecipant['user_id'])
                 room_users.append({"user_id": str(user.user_id), "username": user.username})
 
             # Create new room
@@ -66,6 +77,7 @@ class ConversationApiView(APIView):
 
 
 class MessageApiView(APIView):
+    permission_classes = [IsAuthenticated]
     """
     API endpoint to send message
     """
@@ -90,11 +102,16 @@ class MessageApiView(APIView):
 
             text = request.data.get("text")
 
-            message = Message(sender={"user_id": str(user.user_id), "username": user.username}, message = text)
+            text = bleach.clean(text)
+
+            encrypted_text = cipher.encrypt(text.encode()).decode()
+
+            message = Message(sender={"user_id": str(user.user_id), "username": user.username}, message = encrypted_text)
 
             Room.objects(id=conversation_id).update_one(push__messages=message)
 
             # Send websocket message
+            message.message = text
             channel_layer = channels.layers.get_channel_layer()
             try:
                 async_to_sync(channel_layer.group_send)(
@@ -128,6 +145,7 @@ class MessageApiView(APIView):
                 except Exception as e:
                     logger.error(f'Failed to send notification to room {room.id}: {str(e)}')
 
+            logger.info(f'Message sent by {request.user.username}')
             return Response("Message sent successfully!", status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -149,7 +167,13 @@ class ListMessagesApiView(APIView):
 
             room = Room.objects(id=conversation_id).first()
 
-            return Response(RoomSerializer(room).data['messages'], status=status.HTTP_200_OK)
+            encrypted_messages = RoomSerializer(room).data['messages']
+
+            messages = []
+            for encrypted_message in encrypted_messages:
+                messages.append(cipher.decrypt(encrypted_message['message'].encode()).decode())
+
+            return Response(messages, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error occurred: {e}")

@@ -88,12 +88,10 @@ MIDDLEWARE = [
 ]
 
 
-
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  
     'allauth.account.auth_backends.AuthenticationBackend',  
 )
-
 
 ROOT_URLCONF = 'forum.urls'
 
@@ -199,7 +197,7 @@ REST_FRAMEWORK = {
     
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
     ],
      
      'DEFAULT_THROTTLE_RATES': {
@@ -273,20 +271,13 @@ PHONENUMBER_DB_FORMAT = 'INTERNATIONAL'
 
 
 # Email settings
-# EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
-# EMAIL_HOST = os.environ.get('EMAIL_HOST')
-# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-# EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-# EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS') == 'True'
-# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'localhost'
-EMAIL_PORT = 1025
-EMAIL_USE_TLS = False
-DEFAULT_FROM_EMAIL = 'admin@localhost'
-
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS') == 'True'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
@@ -299,7 +290,6 @@ CELERY_TASK_SERIALIZER = 'json'
 # New setting for retrying broker connections on startup (for Celery 6.0)
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-
 # Logging configuration
 LOG_FILE_PATH = os.path.join('logs', 'forum.log')
 
@@ -307,8 +297,6 @@ LOG_FILE_PATH = os.path.join('logs', 'forum.log')
 log_dir = os.path.dirname(LOG_FILE_PATH)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-
-
 
 LOGGING = {
     "version": 1,
@@ -407,8 +395,6 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 
-
-# Oauth
 SITE_ID = 1
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -446,10 +432,7 @@ LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
 SOCIALACCOUNT_LOGIN_REDIRECT_URL = 'http://localhost:3000/login/success'
 
 
-
-
 # ElasticSearch
-
 ELASTICSEARCH_DSL = {
     'default': {
         'hosts': 'http://localhost:9200'
@@ -462,3 +445,10 @@ ELASTICSEARCH_INDEX_NAMES = {
     'startups.startup': 'startups',
 }
 
+
+SSL_CERTIFICATE = os.path.join(BASE_DIR, 'ssl', 'localhost.crt')
+SSL_KEY = os.path.join(BASE_DIR, 'ssl', 'localhost.key')
+
+# SECURE_SSL_REDIRECT = True
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True

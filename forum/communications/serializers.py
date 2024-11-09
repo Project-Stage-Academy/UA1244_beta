@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from communications.models import Message
+
 
 class UserSerializer(serializers.Serializer):
     user_id = serializers.CharField()
@@ -7,6 +9,10 @@ class UserSerializer(serializers.Serializer):
 
 
 class MessageSerializer(serializers.Serializer):
+    class Meta:
+        model = Message
+        fields = '__all__'
+
     sender = UserSerializer()
     message = serializers.CharField()
     created_at = serializers.DateTimeField(read_only=True)
@@ -14,7 +20,7 @@ class MessageSerializer(serializers.Serializer):
 
 class RoomSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
-    messages = MessageSerializer(many=True)
+    messages = MessageSerializer(many=True, default=lambda: [])
     participants = UserSerializer(many=True)
 
 
