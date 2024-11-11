@@ -41,12 +41,6 @@ class ConversationApiView(APIView):
 
             participants = serializer.validated_data.get("participants")
 
-            if not participants:
-                err_msg = "Missing 'participants' key in request body"
-                logger.error(f"Error occurred: {err_msg}")
-                return Response({"error": "Missing 'participants' key in request body"},
-                                status=status.HTTP_400_BAD_REQUEST)
-
             if len(participants) == 0:
                 err_msg = "'participants' empty in request body"
                 logger.error(f"Error occurred: {err_msg}")
@@ -159,12 +153,6 @@ class ListMessagesApiView(APIView):
     """
     def get(self, request: Request, conversation_id):
         try:
-            if not conversation_id:
-                err_msg = "Missing 'conversation_id' key in request URL"
-                logger.error(f"Error occurred: {err_msg}")
-                return Response({"error": err_msg},
-                                status=status.HTTP_400_BAD_REQUEST)
-
             room = Room.objects(id=conversation_id).first()
 
             encrypted_messages = RoomSerializer(room).data['messages']
