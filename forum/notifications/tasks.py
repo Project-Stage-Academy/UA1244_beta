@@ -30,7 +30,7 @@ def create_notification_task(entity_type, entity_id, trigger, message, initiator
     """
     try:
         if entity_type == 'project':
-            entity = Project.objects.get(id=entity_id)
+            entity = Project.objects.get(project_id=entity_id)
             Notification.objects.create(
                 project=entity,
                 trigger=trigger,
@@ -38,7 +38,7 @@ def create_notification_task(entity_type, entity_id, trigger, message, initiator
                 message=message
             )
         elif entity_type == 'investor':
-            entity = Investor.objects.get(id=entity_id)
+            entity = Investor.objects.get(investor_id=entity_id)
             Notification.objects.create(
                 investor=entity,
                 trigger=trigger,
@@ -46,7 +46,7 @@ def create_notification_task(entity_type, entity_id, trigger, message, initiator
                 message=message
             )
         elif entity_type == 'startup':
-            entity = Startup.objects.get(id=entity_id)
+            entity = Startup.objects.get(startup_id=entity_id)
             Notification.objects.create(
                 startup=entity,
                 trigger=trigger,

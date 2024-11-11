@@ -203,8 +203,8 @@ REST_FRAMEWORK = {
     ],
      
      'DEFAULT_THROTTLE_RATES': {
-        'anon': '10/min',
-        'user': '20/min',
+        'anon': '50/min',
+        'user': '50/min',
 
     },
 }
@@ -461,4 +461,23 @@ ELASTICSEARCH_INDEX_NAMES = {
     'projects.project': 'projects',
     'startups.startup': 'startups',
 }
+
+import sys
+if 'test' in sys.argv:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'level': 'INFO',
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'loggers': {
+            '': {
+                'handlers': ['console'],
+                'level': 'INFO',
+            },
+        },
+    }
 

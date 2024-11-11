@@ -5,15 +5,23 @@ This module includes unit tests for creating, updating, retrieving, and deleting
 as well as tests for notification preferences and permissions.
 """
 
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
+from asgiref.sync import sync_to_async
+from channels.layers import get_channel_layer
+from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-
-from .models import Notification, StartupNotificationPreferences, Investor, Startup, Project
-from users.models import Role
-
+from django.test import TestCase
+from django.urls import reverse
+from investors.models import Investor
+from notifications.consumers import NotificationConsumer
+from notifications.models import Notification, StartupNotificationPreferences
+from notifications.tasks import create_notification_task, trigger_notification_task
+from notifications.utils import trigger_notification, notify_user
+from projects.models import Project
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+from startups.models import Startup
+from users.models import Role, User
 User = get_user_model()
 
 class NotificationTests(APITestCase):
@@ -169,3 +177,228 @@ class NotificationTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data['detail'], 'You do not have permission to perform this action.')
+
+    def test_create_notification_prefs(self):
+        """
+        Test creating notification preferences for a user.
+        Verifies that the preferences are created with a 201 Created response.
+        """
+        url = reverse('notificationpreferences-list')
+        data = {'email_project_updates': False, 'push_project_updates': True}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_list_notification_prefs(self):
+        """
+        Test listing notification preferences for a user.
+        Verifies that the preferences list is retrieved successfully with a 200 OK response.
+        """
+        url = reverse('notificationpreferences-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_create_notification_task(self):
+        """
+        Test creating a notification through the create_notification_task.
+        Ensures that a notification for 'investor_follow' is created and exists in the database.
+        """
+        create_notification_task("investor", self.investor.investor_id, "investor_follow", "Followed a startup", initiator="system")
+        notification_exists = Notification.objects.filter(investor=self.investor, trigger="investor_follow").exists()
+        self.assertTrue(notification_exists)
+
+    def test_trigger_notification_task(self):
+        """
+        Test triggering a notification using trigger_notification_task.
+        Confirms that the task completes without returning a result.
+        """
+        result = trigger_notification_task(self.investor.investor_id, self.startup.startup_id, self.project.project_id, "project_follow")
+        self.assertIsNone(result)
+
+    def test_trigger_notification_utility(self):
+        """
+        Test triggering a notification using the trigger_notification utility function.
+        Verifies that a notification is created and stored for the specified investor and project.
+        """
+        trigger_notification(self.investor, self.startup, self.project, "project_follow")
+        notification_exists = Notification.objects.filter(investor=self.investor, trigger="project_follow").exists()
+        self.assertTrue(notification_exists)
+
+    def test_mark_as_read_non_existent_notification(self):
+        """
+        Test marking a non-existent notification as read.
+        Verifies that a 404 Not Found status is returned.
+        """
+        non_existent_notification_id = 9999
+        url = reverse('mark-as-read', kwargs={'notification_id': non_existent_notification_id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['error'], 'Notification not found')
+
+    def test_invalid_data_in_trigger_notification(self):
+        """
+        Test sending invalid data to trigger a notification.
+        Verifies that a 400 Bad Request status is returned.
+        """
+        url = reverse('notification-trigger')
+        data = {
+            "investor_id": "invalid_id",  # invalid ID format
+            "startup_id": self.startup.startup_id,
+            "project_id": self.project.project_id,
+            "trigger_type": "project_follow"
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('investor_id', response.data)
+
+    def test_create_notification_preference_with_invalid_role(self):
+        """
+        Test creating notification preferences with a user who lacks investor or startup roles.
+        Verifies that a 403 Forbidden status is returned.
+        """
+        user_without_roles = User.objects.create_user(
+            username='no_role_user',
+            email='noroleuser@example.com',
+            password='password123'
+        )
+        self.client.force_authenticate(user=user_without_roles)
+        url = reverse('notificationpreferences-list')
+        response = self.client.post(url, {'email_project_updates': True})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_mark_notification_as_read_twice(self):
+        """
+        Test marking a notification as read twice.
+        Verifies that the notification remains marked as read.
+        """
+        url = reverse('mark-as-read', kwargs={'notification_id': self.notification.pk})
+        # Mark as read the first time
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Attempt to mark as read a second time
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.notification.refresh_from_db()
+        self.assertTrue(self.notification.is_read)
+
+    def test_list_notification_prefs(self):
+        """
+        Test listing notification preferences for the user.
+        Verifies successful retrieval of preferences.
+        """
+        url = reverse('notificationpreferences-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class NotificationConsumerTestCase(TestCase):
+    """
+    TestCase for NotificationConsumer WebSocket functionality, which tests
+    the ability of authenticated users to receive real-time notifications.
+    """
+    async def test_websocket_connection_and_notification(self):
+        """
+        Test WebSocket connection and reception of a notification message.
+        Ensures that an authenticated user can connect to the WebSocket,
+        receive a notification, and disconnect successfully.
+        """
+        user = await sync_to_async(User.objects.create_user)(
+            username='ws_user', email='ws_user@example.com', password='password123'
+        )
+
+        # Initialize WebSocket communicator for NotificationConsumer
+        communicator = WebsocketCommunicator(NotificationConsumer.as_asgi(), "/ws/notifications/")
+        communicator.scope['user'] = user
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+
+        # Send test message to the WebSocket group
+        channel_layer = get_channel_layer()
+        await channel_layer.group_send(
+            f'notifications_{user.pk}',
+            {
+                'type': 'send_notification',
+                'message': 'Test Notification'
+            }
+        )
+
+        # Receive the message from WebSocket
+        response = await communicator.receive_json_from()
+        self.assertEqual(response, {'message': 'Test Notification'})
+
+        # Disconnect the WebSocket
+        await communicator.disconnect()
+
+
+class NotificationTasksTestCase(TestCase):
+    """
+    TestCase for notification-related tasks, ensuring notifications
+    can be created and triggered through Celery tasks.
+    """
+    def setUp(self):
+        """
+        Set up test objects for Celery tasks, including a user, an investor,
+        a startup, and a project, to verify task-based notifications.
+        """
+        self.user = User.objects.create_user(username='task_user', email='task_user@test.com', password='password123')
+        self.investor = Investor.objects.create(user=self.user)
+        self.startup = Startup.objects.create(user=self.user, company_name='Startup Test')
+        self.project = Project.objects.create(startup=self.startup, title='Test Project', required_amount=10000.00)
+
+    def test_create_notification_task_project(self):
+        """
+        Test that a notification is created for a project update using
+        the create_notification_task Celery task.
+        """
+        create_notification_task("project", self.project.project_id, "project_update", "Project was updated")
+        notification_exists = Notification.objects.filter(project=self.project, trigger="project_update").exists()
+        self.assertTrue(notification_exists)
+
+    def test_trigger_notification_task(self):
+        """
+        Test that a triggered notification works as expected using
+        the trigger_notification_task Celery task.
+        """
+        result = trigger_notification_task(
+            investor_id=self.investor.investor_id,
+            startup_id=self.startup.startup_id,
+            project_id=self.project.project_id,
+            trigger_type="project_follow"
+        )
+        self.assertIsNone(result)
+
+
+class NotificationUtilsTestCase(TestCase):
+    """
+    TestCase for notification utility functions, validating that notifications
+    are created and users are notified according to role permissions.
+    """
+    def setUp(self):
+        """
+        Set up a user and related objects for utility tests, including
+        an investor, a startup, and a project.
+        """
+        self.user = User.objects.create_user(username='util_user', email='util_user@test.com', password='password123')
+        self.investor = Investor.objects.create(user=self.user)
+        self.startup = Startup.objects.create(user=self.user, company_name="Startup Util Test")
+        self.project = Project.objects.create(startup=self.startup, title='Test Project', required_amount=10000.00)
+
+    def test_trigger_notification(self):
+        """
+        Test that a notification is created using the trigger_notification
+        utility function for a specified project and startup.
+        """
+        trigger_notification(investor=None, startup=self.startup, project=self.project, trigger_type="project_update")
+        notification_exists = Notification.objects.filter(
+            startup=self.startup, project=self.project, trigger="project_update"
+        ).exists()
+        self.assertTrue(notification_exists)
+
+    def test_notify_user_no_permissions(self):
+        """
+        Test that a user without appropriate roles cannot receive notifications.
+        Verifies that a message is returned indicating lack of permissions.
+        """
+        new_user = User.objects.create_user(username='no_role_user', email='ut_user@test.com', password='password123')
+        result = notify_user(new_user, "new_follow", "Test Message")
+        self.assertEqual(result, "User does not have the required role of investor or startup.")

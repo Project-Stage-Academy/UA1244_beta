@@ -85,9 +85,9 @@ class Notification(models.Model):
         Assigns a default testing URL if no associated object is found.
         """
         redirection_mapping = {
-            'project_follow': f'/projects/{self.project.id}/' if self.project else None,
-            'startup_profile_update': f'/startups/{self.startup.id}/' if self.startup else None,
-            'investor_profile_change': f'/investors/{self.investor.id}/' if self.investor else None,
+            'project_follow': f'/projects/{self.project.project_id}/' if self.project else None,
+            'startup_profile_update': f'/startups/{self.startup.startup_id}/' if self.startup else None,
+            'investor_profile_change': f'/investors/{self.investor.investor_id}/' if self.investor else None,
         }
         self.redirection_url = redirection_mapping.get(
             self.trigger, 'http://example.com/fake-url-for-testing/'

@@ -2,13 +2,14 @@
 Views for managing notification preferences for startups and investors.
 """
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render, redirect
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from django.views import View
 from .models import StartupNotificationPreferences, InvestorNotificationPreferences
 
-class NotificationPreferencesUpdateView(View):
+class NotificationPreferencesUpdateView(LoginRequiredMixin, View):
     """
     View to update notification preferences for both startups and investors.
     This view handles both GET and POST requests, allowing the user to view 

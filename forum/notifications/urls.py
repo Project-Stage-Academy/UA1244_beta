@@ -36,5 +36,10 @@ urlpatterns = [
         NotificationPreferencesUpdateView.as_view(),
         name='notification-prefs-update'
     ),
+    path(
+    'notifications/trigger/',
+    NotificationViewSet.as_view({'post': 'trigger_notification'}),
+    name='notification-trigger'
+),
 ]
 

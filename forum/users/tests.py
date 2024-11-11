@@ -1,13 +1,24 @@
 """
 Tests for user and role models.
 """
-
-from rest_framework.test import APITestCase
-from rest_framework import status
+from uuid import uuid4
 from unittest.mock import patch
-from django.test import TestCase
+from django.contrib.auth.tokens import default_token_generator
+from django.test import TestCase, RequestFactory
 from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.conf import settings
+
+from allauth.socialaccount.models import SocialAccount, SocialLogin
+from rest_framework import status
+from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import AccessToken
+
+from users.adapter import CustomSocialAccountAdapter
 from users.models import Role, User
+from users.serializers import LoginSerializer, CustomToken
+from users.tasks import send_activation_email, send_welcome_email, send_reset_password_email
 
 
 class RoleTests(TestCase):
@@ -116,7 +127,6 @@ class RoleTests(TestCase):
             "Failed to assign the 'startup' role to the user during creation."
         )
 
-
 class RolePermissionTests(APITestCase):
     """Tests for role-based permissions."""
 
@@ -178,7 +188,6 @@ class RolePermissionTests(APITestCase):
         """
         response = self.client.get(reverse('startup-only'))
         self.assertEqual(response.status_code, 401)
-
 
 class OAuthTokenObtainPairViewTests(APITestCase):
     """Tests for OAuth token obtainment."""
@@ -256,3 +265,312 @@ class OAuthTokenObtainPairViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
 
+class ResetPasswordRequestViewTests(APITestCase):
+    """Tests for initiating the password reset process."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username='resetuser',
+            email='resetuser@example.com',
+            password='password123'
+        )
+
+    @patch('users.tasks.send_reset_password_email.delay')
+    def test_reset_password_request_valid_user(self, mock_send_email):
+        """Test initiating password reset for an existing user."""
+        response = self.client.post(reverse('reset_password_request'), {'email': 'resetuser@example.com'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_send_email.assert_called_once_with(self.user.user_id)
+
+    def test_reset_password_request_invalid_user(self):
+        """Test initiating password reset with a non-existent email."""
+        response = self.client.post(reverse('reset_password_request'), {'email': 'nonexistent@example.com'})
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+class ResetPasswordConfirmViewTests(APITestCase):
+    """Tests for confirming and setting a new password."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username='confirmuser',
+            email='confirmuser@example.com',
+            password='password123'
+        )
+
+    def test_reset_password_with_invalid_token(self):
+        """Test resetting password with a valid token and UID."""
+        token = default_token_generator.make_token(self.user)
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        url = reverse('reset_password_confirm', args=[uidb64, token])
+        new_password_data = {'password': 'newpassword123'}
+        response = self.client.post(url, new_password_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], 'Password must contain at least one uppercase letter.')
+        
+    def test_reset_password_with_valid_token(self):
+        """Test attempting to reset password with an invalid token."""
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        url = reverse('password_reset_confirm', args=[uidb64, 'invalid-token'])
+        response = self.client.post(url, {'password': 'newpassword123'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)       
+class UserActivationTests(APITestCase):
+    """Tests for activating user accounts."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username='activationuser',
+            email='activationuser@example.com',
+            password='password123',
+            is_active=False
+        )
+        cls.unassigned_role = Role.objects.create(name='unassigned')
+
+    @patch('users.tasks.send_welcome_email.apply_async')
+    def test_activate_account(self, mock_send_email):
+        """Test account activation process."""
+        token = CustomToken.for_user(self.user)
+        activation_url = reverse('activate', kwargs={'token': str(token)})
+
+        response = self.client.get(activation_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+        mock_send_email.assert_called_once_with(args=[self.user.user_id])
+
+class UserSerializerTests(APITestCase):
+    """Tests for UserSerializer and LoginSerializer functionality."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Set up test data for UserSerializerTests.
+
+        This method creates a role and a user instance that can be used across
+        multiple tests, including data for creating a new user and verifying login.
+        """
+        cls.role = Role.objects.create(name="investor")
+        cls.user_data = {
+            'username': 'newuser',
+            'first_name': 'New',
+            'last_name': 'User',
+            'email': 'newuser@example.com',
+            'phone': '1234567890',
+            'password': 'Password123!',
+            'roles': [cls.role.name]
+        }
+        cls.existing_user = User.objects.create_user(
+            email="testuser@example.com", password="password123", username="testuser"
+        )
+
+    def test_login_serializer_with_valid_credentials(self):
+        """Test successful login using LoginSerializer.
+
+        This method tests that LoginSerializer successfully authenticates
+        a user with valid credentials and retrieves the correct user instance.
+        """
+        data = {"email": self.existing_user.email, "password": "password123"}
+        serializer = LoginSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["user"], self.existing_user)
+
+
+class CustomTokenTests(APITestCase):
+    """Tests for custom token functionality and its expiration time."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Set up test data for CustomTokenTests.
+
+        This method creates a user instance that will be used to test
+        the custom token's functionality and verify its expiration time.
+        """
+        cls.user = User.objects.create_user(email="test@example.com", password="password", username="testuser")
+
+    def test_custom_token_lifetime(self):
+        """Test the expiration time of the custom token.
+
+        This test checks that the custom token generated for a user has
+        the correct token type ('access') and a lifetime of zero days.
+        """
+        token = AccessToken.for_user(self.user)
+        self.assertEqual(str(token.token_type), "access")
+        self.assertEqual(token.lifetime.days, 0)
+
+
+class CustomSocialAccountAdapterTests(TestCase):
+    """Tests for CustomSocialAccountAdapter, specifically for handling social login."""
+
+    def setUp(self):
+        """Set up the test environment for CustomSocialAccountAdapterTests.
+
+        This method initializes a request factory and creates a role that
+        will be associated with the user during social account tests.
+        """
+        self.factory = RequestFactory()
+        self.role = Role.objects.create(name="investor")
+    
+    @patch('users.tasks.send_welcome_email.apply_async')
+    def test_save_user_social_account_activation(self, mock_send_welcome_email):
+        """
+        Test that a user authenticated via a social account is saved as active
+        and receives a welcome email.
+        """
+        user = User(username='socialuser', email='socialuser@example.com', is_active=False)
+        user.set_password('password123')
+        social_account = SocialAccount(provider='google', uid='123456')
+        sociallogin = SocialLogin(user=user, account=social_account)
+        request = self.factory.get('/dummy-url/')
+        request.session = self.client.session 
+        adapter = CustomSocialAccountAdapter()
+        saved_user = adapter.save_user(request=request, sociallogin=sociallogin)
+        self.assertTrue(saved_user.is_active, "User should be activated upon social account creation.")
+        mock_send_welcome_email.assert_called_once_with(args=[saved_user.user_id])
+
+class UserEmailTasksTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="testuser",
+            email="testuser@example.com",
+            password="password123"
+        )
+        cls.activation_url = "http://example.com/activate"
+
+    @patch("users.tasks.send_mail")
+    def test_send_activation_email(self, mock_send_mail):
+        """Test sending activation email."""
+        send_activation_email(user_id=self.user.user_id, activation_url=self.activation_url)
+
+        mock_send_mail.assert_called_once_with(
+            subject="Activate Your Account",
+            message=(
+                f"Hi {self.user.first_name},\n\nPlease click the link below to activate your account:\n{self.activation_url}"
+            ),
+            from_email=None,
+            recipient_list=[self.user.email],
+            fail_silently=False,
+        )
+
+    @patch("users.tasks.send_mail")
+    def test_send_welcome_email(self, mock_send_mail):
+        """Test sending welcome email."""
+        send_welcome_email(user_id=self.user.user_id)
+
+        mock_send_mail.assert_called_once_with(
+            subject="Welcome to Our Platform!",
+            message=mock_send_mail.call_args[0][1],  
+            from_email=None, 
+            recipient_list=[self.user.email],
+            fail_silently=False,
+        )
+
+    @patch("users.tasks.send_mail")
+    @patch("users.tasks.render_to_string", return_value="Rendered email content")
+    def test_send_reset_password_email(self, mock_render_to_string, mock_send_mail):
+        """Test sending reset password email."""
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        reset_link = f"http://example.com/reset_password/{uid}/{token}/"
+
+        send_reset_password_email(user_id=self.user.user_id)
+
+        mock_render_to_string.assert_called_once_with(
+            "emails/reset_password_email.html", {"user": self.user, "reset_link": reset_link}
+        )
+        mock_send_mail.assert_called_once_with(
+            subject="Password Reset Request",
+            message="Rendered email content",
+            from_email=None,  # Замінити на settings.EMAIL_HOST_USER
+            recipient_list=[self.user.email],
+            fail_silently=False,
+        )
+
+    @patch("users.tasks.logger")
+    @patch("users.tasks.send_mail")
+    def test_send_activation_email_user_does_not_exist(self, mock_send_mail, mock_logger):
+        """Test activation email error logging when user does not exist."""
+        send_activation_email(user_id="non_existing_user_id", activation_url=self.activation_url)
+
+        mock_logger.error.assert_called_once_with("User with ID %s does not exist", "non_existing_user_id")
+        mock_send_mail.assert_not_called()
+
+    @patch("users.tasks.logger")
+    @patch("users.tasks.send_mail", side_effect=Exception("Email send failed"))
+    def test_send_activation_email_failure(self, mock_send_mail, mock_logger):
+        """Test logging failure to send activation email."""
+        send_activation_email(user_id=self.user.user_id, activation_url=self.activation_url)
+
+        mock_logger.error.assert_called_once_with("Failed to send activation email: %s", "Email send failed")
+
+class UserEmailTasksTests(TestCase):
+    """
+    Test case for user email-related tasks, including sending activation,
+    welcome, and password reset emails, as well as handling cases when
+    users do not exist.
+    """
+    @classmethod
+    def setUpTestData(cls):
+        """
+        Set up test data, including a test user and activation URL for email tasks.
+        """
+        cls.user = User.objects.create_user(
+            username="testuser",
+            email="testuser@example.com",
+            password="password123"
+        )
+        cls.activation_url = f"{settings.FRONTEND_URL}/activate"
+
+    @patch("users.tasks.send_mail")
+    def test_send_activation_email(self, mock_send_mail):
+        """
+        Test that the activation email is sent with the correct parameters.
+        """
+        send_activation_email(user_id=self.user.user_id, activation_url=self.activation_url)
+
+        mock_send_mail.assert_called_once_with(
+            subject="Activate Your Account",
+            message=(
+                f"Hi {self.user.first_name},\n\nPlease click the link below to activate your account:\n{self.activation_url}"
+            ),
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[self.user.email],
+            fail_silently=False,
+        )
+
+    @patch("users.tasks.logger")
+    @patch("users.tasks.send_mail")
+    def test_send_activation_email_user_does_not_exist(self, mock_send_mail, mock_logger):
+        """
+        Test that an error is logged and email is not sent when the specified user does not exist.
+        """
+        non_existing_uuid = uuid4()
+        send_activation_email(user_id=non_existing_uuid, activation_url=self.activation_url)
+
+        mock_logger.error.assert_called_once_with("User with ID %s does not exist", non_existing_uuid)
+        mock_send_mail.assert_not_called()
+
+    @patch("users.tasks.logger")
+    @patch("users.tasks.send_mail")
+    def test_send_welcome_email_user_does_not_exist(self, mock_send_mail, mock_logger):
+        """
+        Test that an error is logged and email is not sent when attempting to send a welcome email to a nonexistent user.
+        """
+        non_existing_uuid = uuid4()
+        send_welcome_email(user_id=non_existing_uuid)
+
+        mock_logger.error.assert_called_once_with("User with ID %s does not exist", non_existing_uuid)
+        mock_send_mail.assert_not_called()
+
+    @patch("users.tasks.logger")
+    @patch("users.tasks.send_mail")
+    def test_send_reset_password_email_user_does_not_exist(self, mock_send_mail, mock_logger):
+        """
+        Test that an error is logged and email is not sent when attempting to send a password reset email to a nonexistent user.
+        """
+        non_existing_uuid = uuid4()
+        send_reset_password_email(user_id=non_existing_uuid)
+
+        mock_logger.error.assert_called_once_with("User with ID %s does not exist", non_existing_uuid)
+        mock_send_mail.assert_not_called()
