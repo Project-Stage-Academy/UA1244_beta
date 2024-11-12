@@ -2,7 +2,7 @@ import datetime
 from django.utils import timezone
 
 from mongoengine import EmbeddedDocument, StringField, Document, DateTimeField, ListField, \
-    EmbeddedDocumentField, ReferenceField, BooleanField
+    EmbeddedDocumentField, ReferenceField, BooleanField, ValidationError
 
 
 class User(EmbeddedDocument):
@@ -46,6 +46,9 @@ class Room(Document):
     messages = ListField(EmbeddedDocumentField(Message)) # [{"sender": {"user_id": 1, "username": "user1"}, "message": "Hello"}, {...}]
     participants = ListField(EmbeddedDocumentField(User)) # [{"user_id": 1, "username": "user1"}, {"user_id": 2, "username": "user_2"}]
 
+    def clean(self):
+        if not self.participants:
+            raise ValidationError("Participants list cannot be empty.")
 
 class Notification(Document):
     """
