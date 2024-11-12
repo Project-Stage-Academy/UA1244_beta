@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from .models import Message, Notification
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('forum')
 
 @receiver(post_save, sender=Message)
 def send_notification_via_channels(sender, instance, created, **kwargs):

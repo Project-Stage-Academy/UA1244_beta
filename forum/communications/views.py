@@ -20,7 +20,7 @@ from communications.serializers import RoomSerializer
 from users.models import User
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("forum")
 
 cipher = Fernet(os.environ.get('FERNET_KEY'))
 
