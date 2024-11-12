@@ -71,3 +71,8 @@ elastic-transport==8.15.1
 elasticsearch==8.15.1
 elasticsearch-dsl==8.9.0
 packaging==24.1
+
+pytest-django==4.9.0
+mongomock==4.2.0.post1
+pytest-cov==6.0.0
+pytest-asyncio==0.24.0

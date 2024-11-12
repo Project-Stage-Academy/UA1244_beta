@@ -191,6 +191,11 @@ cd forum && python manage.py runserver_plus --cert-file ./ssl/localhost.crt --ke
 bandit -r forum
 ```
 
+## Test coverage
+```shell
+cd forum/communications && pytest --cov=communications --cov-report=html
+```
+
 ## Frontend
 Instructions for Installing React, Dependencies, and Running the React Server
 

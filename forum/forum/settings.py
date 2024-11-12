@@ -330,6 +330,7 @@ LOGGING = {
         'django': {
             'handlers': ['console', 'file'],
             'level': os.environ.get("LOG_LEVEL"),
+            'propagate': True,
         },
         'django.db.backends': {
             'handlers': ['console', 'file'],
